@@ -4,3 +4,5 @@ face-net
 mtcnn
 tensorflow
 h5py
+scipy #for testing
+scikit-learn #for testing
