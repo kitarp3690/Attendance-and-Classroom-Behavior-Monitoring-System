@@ -1,2 +1,95 @@
-<p> this is just a sample paragraph</p>
-<h1> this is heading one </h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School Login | KHEC LOGIN</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+  <!-- Login Card -->
+  <div class="bg-white shadow-xl rounded-2xl w-full max-w-md p-8 space-y-6">
+    <div class="text-center">
+      <div class="flex justify-center mb-4">
+        <div class="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center bg-white">
+          <img src="https://www.khec.edu.np/themes/khec/img/KhEC_Logo_120.png" 
+               alt="KHEC Logo" 
+               class="w-full h-full object-contain p-1">
+        </div>
+      </div>
+      <h1 class="text-2xl font-semibold text-gray-800">KHEC LOGIN</h1>
+      <p class="text-gray-500 text-sm mt-1">Login to your account</p>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="space-y-5">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Username / Email</label>
+        <input type="text" id="username" required class="w-full border px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter your username">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+        <input type="password" id="password" required class="w-full border px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter your password">
+      </div>
+
+      <div class="flex justify-between items-center text-sm">
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" class="text-blue-600 focus:ring-blue-500">
+          <span>Remember me</span>
+        </label>
+        <a href="#" class="text-blue-600 hover:underline">Forgot Password?</a>
+      </div>
+
+      <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
+        Login
+      </button>
+    </form>
+
+    <!-- Role Selector -->
+    <div class="text-center text-sm text-gray-600">
+      <p>Login as:</p>
+      <div class="flex justify-center gap-3 mt-2">
+        <button type="button" onclick="selectRole('admin')" class="role-btn bg-blue-50 text-blue-600 px-3 py-1 rounded-lg border border-blue-100 hover:bg-blue-100">Admin</button>
+        <button type="button" onclick="selectRole('teacher')" class="role-btn bg-blue-50 text-blue-600 px-3 py-1 rounded-lg border border-blue-100 hover:bg-blue-100">Teacher</button>
+        <button type="button" onclick="selectRole('student')" class="role-btn bg-blue-50 text-blue-600 px-3 py-1 rounded-lg border border-blue-100 hover:bg-blue-100">Student</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <script>
+    let selectedRole = "";
+
+    function selectRole(role) {
+      selectedRole = role;
+      document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('bg-blue-600', 'text-white'));
+      event.target.classList.add('bg-blue-600', 'text-white');
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      if (!selectedRole) {
+        alert("Please select a role (Admin / Teacher / Student).");
+        return;
+      }
+
+      // Demo login validation (replace later with backend check)
+      //**if (selectedRole === "admin" && username === "admin@school.com" && password === "admin123") {
+      //  window.location.href = "admin-dashboard.html";
+      //} else if (selectedRole === "teacher" && password === "teacher123") {
+       // window.location.href = "teacher-dashboard.html";
+      //} else if (selectedRole === "student" && password.match(/^\d{4}-\d{2}-\d{2}$/)) {
+       // window.location.href = "student-dashboard.html";
+      //} else {
+      //  alert("Invalid credentials. Please try again.");
+      //}
+    //});
+  </script>
+
+</body>
+</html>
