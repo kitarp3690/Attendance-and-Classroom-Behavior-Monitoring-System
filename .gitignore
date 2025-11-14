@@ -1,0 +1,6 @@
+virtenv
+student_embeddings
+dataset
+frontend/node_modules/
+.vscode/
+frontend/folder_structure.txt
