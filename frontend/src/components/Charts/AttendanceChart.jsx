@@ -6,14 +6,38 @@ export default function AttendanceChart({ data }) {
         <div className="attendance-chart">
             <h4>Attendance Trends</h4>
             <div className="attendance-bars">
-                {data.labels.map((lbl, i) => (
-                    <div key={lbl} className="attendance-bar-row">
-                        <span className="bar-label">{lbl}</span>
-                        <span className="bar-green" style={{ width: data.present[i] * 2 }}>{data.present[i]}</span>
-                        <span className="bar-red" style={{ width: data.absent[i] * 2 }}>{data.absent[i]}</span>
-                        <span className="bar-yellow" style={{ width: data.late[i] * 2 }}>{data.late[i]}</span>
-                    </div>
-                ))}
+                {data.labels.map((label, i) => {
+                    const present = data.present[i] ?? 0;
+                    const absent = data.absent[i] ?? 0;
+                    const late = data.late[i] ?? 0;
+                    const widthMultiplier = 9;
+
+                    return (
+                        <div key={label} className="attendance-bar-row">
+                            <span className="bar-label">{label}</span>
+                            <div className="bar-track">
+                                <span
+                                    className="bar-token bar-green"
+                                    style={{ width: Math.max(present * widthMultiplier, 48) }}
+                                >
+                                    {present}
+                                </span>
+                                <span
+                                    className="bar-token bar-red"
+                                    style={{ width: Math.max(absent * widthMultiplier, 48) }}
+                                >
+                                    {absent}
+                                </span>
+                                <span
+                                    className="bar-token bar-yellow"
+                                    style={{ width: Math.max(late * widthMultiplier, 48) }}
+                                >
+                                    {late}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
