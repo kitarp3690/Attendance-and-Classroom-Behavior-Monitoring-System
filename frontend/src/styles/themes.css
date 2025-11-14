@@ -1,0 +1,25 @@
+:root {
+    --primary: #3a7afe;
+    --accent: #fbbc05;
+    --success: #29a745;
+    --error: #ee325c;
+    --background: #fcfcfd;
+    --background-alt: #f4f7fa;
+    --card-bg: #fff;
+    --text-dark: #23272f;
+    --text-light: #fff;
+    --border-main: #d9e3ea;
+}
+
+[data-theme="dark"] {
+    --primary: #4485ff;
+    --accent: #f7c05a;
+    --success: #58c17d;
+    --error: #ff6289;
+    --background: #181d27;
+    --background-alt: #232735;
+    --card-bg: #232735;
+    --text-dark: #f6f7f9;
+    --text-light: #23272f;
+    --border-main: #31334f;
+}

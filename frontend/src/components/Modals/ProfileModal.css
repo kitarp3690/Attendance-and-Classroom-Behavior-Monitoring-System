@@ -1,0 +1,50 @@
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1111;
+}
+
+.profile-modal {
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 32px 35px;
+    box-shadow: 0 6px 24px rgba(22, 34, 55, .19);
+    min-width: 270px;
+    border: 2px solid var(--border-main);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.profile-modal input[type="file"] {
+    margin: 8px 0;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 18px;
+    margin-top: 9px;
+}
+
+.modal-btn {
+    background: var(--primary);
+    color: var(--text-light);
+    border: none;
+    border-radius: 8px;
+    padding: 9px 23px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.15s;
+}
+
+.modal-btn:hover {
+    background: var(--accent);
+    color: var(--text-dark);
+}

@@ -1,0 +1,73 @@
+.attendance-table-container {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.07);
+    padding: 24px 16px;
+    margin-bottom: 32px;
+}
+
+.table-filters {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.attendance-table th,
+.attendance-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eaeaea;
+    font-size: 1em;
+}
+
+.status.present {
+    color: green;
+    font-weight: 600;
+}
+
+.status.absent {
+    color: red;
+    font-weight: 600;
+}
+
+.status.late {
+    color: orange;
+    font-weight: 600;
+}
+
+.edit-btn,
+.delete-btn {
+    border-radius: 4px;
+    padding: 5px 11px;
+    background: #e7f7ef;
+    color: #1c7c53;
+    border: none;
+    cursor: pointer;
+    margin-right: 5px;
+    font-size: .98em;
+    transition: background 0.18s;
+}
+
+.delete-btn {
+    background: #ffe7e7;
+    color: #ad1e1f;
+}
+
+.edit-btn:hover {
+    background: #d3ede2;
+}
+
+.delete-btn:hover {
+    background: #fbdcdc;
+}
+
+.pagination {
+    text-align: right;
+    margin-top: 12px;
+    font-size: 1em;
+}

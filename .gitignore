@@ -1,4 +1,5 @@
 virtenv
 student_embeddings
 dataset
-
+frontend/node_modules/
+.vscode/

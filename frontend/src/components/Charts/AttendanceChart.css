@@ -1,0 +1,43 @@
+.attendance-chart {
+    background: #fff;
+    margin-top: 24px;
+    border-radius: 8px;
+    padding: 22px 16px;
+}
+
+.attendance-bars {
+    margin-top: 12px;
+}
+
+.attendance-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+}
+
+.bar-label {
+    min-width: 80px;
+    font-weight: 500;
+}
+
+.bar-green,
+.bar-red,
+.bar-yellow {
+    display: inline-block;
+    background: #e8fae8;
+    color: #277c45;
+    padding: 3px 13px;
+    border-radius: 4px;
+    margin-right: 4px;
+}
+
+.bar-red {
+    background: #ffeaea;
+    color: #9c2525;
+}
+
+.bar-yellow {
+    background: #fff8e1;
+    color: #b9750b;
+}
