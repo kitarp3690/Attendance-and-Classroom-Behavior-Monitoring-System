@@ -106,7 +106,8 @@ export default function LoginPage({ theme, onToggleTheme }) {
                             <p className="login-subtitle">Access your attendance dashboard (Student / Teacher / HOD / Admin)</p>
                             <div className="login-roles">
                             <p className="login-subtitle">Enter your credentials to access your account</p>
-                        </div>
+                            </div>
+                            </div>
                         <div className="login-group">
                             <label htmlFor="username"><i className="fa fa-user"></i> Username</label>
                             <input
