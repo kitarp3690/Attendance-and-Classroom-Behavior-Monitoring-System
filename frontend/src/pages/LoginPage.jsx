@@ -1,8 +1,11 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DarkLightToggle from "../components/DarkLightToggle";
+import { authAPI } from "../services/api";
 import "./LoginPage.css";
 
-export default function LoginPage({ setRole, theme, onToggleTheme }) {
+export default function LoginPage({ theme, onToggleTheme }) {
+    const navigate = useNavigate();
     const [form, setForm] = useState({ username: "", password: "", rememberMe: false });
     const [error, setError] = useState("");
     const [showForgot, setShowForgot] = useState(false);
@@ -20,18 +23,45 @@ export default function LoginPage({ setRole, theme, onToggleTheme }) {
         setIsLoading(true);
         setError("");
         
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Production: replace this with backend authentication
-        if (form.username === "admin" || form.username === "teacher" || form.username === "student") {
-            window.sessionStorage.setItem("role", form.username);
+        try {
+            console.log('Attempting login with:', form.username);
+            
+            // Call real backend API
+            const response = await authAPI.login({
+                username: form.username,
+                password: form.password
+            });
+
+            console.log('Login successful, tokens received');
+
+            // Store tokens
+            localStorage.setItem('access_token', response.data.access);
+            localStorage.setItem('refresh_token', response.data.refresh);
+
+            // Fetch user info to get role
+            console.log('Fetching user profile...');
+            const userResponse = await authAPI.getMe();
+            const userRole = userResponse.data.role;
+            
+            console.log('User role:', userRole);
+
+            localStorage.setItem('user_role', userRole);
+            window.sessionStorage.setItem("role", userRole);
+            
             if (form.rememberMe) {
                 window.localStorage.setItem("rememberedUser", form.username);
             }
-            setRole(form.username);
-        } else {
-            setError("Invalid credentials. Please try again.");
+
+            // Redirect based on role
+            console.log('Redirecting to:', `/${userRole}`);
+            navigate(`/${userRole}`);
+            
+            // Reload to trigger AuthContext refresh
+            window.location.reload();
+        } catch (err) {
+            console.error('Login error:', err);
+            setError(err.response?.data?.detail || "Invalid credentials. Please check your username and password.");
+        } finally {
             setIsLoading(false);
         }
     };
@@ -73,6 +103,8 @@ export default function LoginPage({ setRole, theme, onToggleTheme }) {
                                 <i className="fa fa-user-graduate"></i>
                             </div>
                             <h2 className="login-title">Sign In</h2>
+                            <p className="login-subtitle">Access your attendance dashboard (Student / Teacher / HOD / Admin)</p>
+                            <div className="login-roles">
                             <p className="login-subtitle">Enter your credentials to access your account</p>
                         </div>
                         <div className="login-group">
@@ -149,7 +181,7 @@ export default function LoginPage({ setRole, theme, onToggleTheme }) {
                             <span>Quick Access</span>
                         </div>
                         <div className="demo-accounts">
-                            <button type="button" className="demo-btn" onClick={() => setForm({...form, username: "admin", password: "demo"})} disabled={isLoading}>
+                            <button type="button" className="demo-btn" onClick={() => setForm({...form, username: "admin", password: "admin123456"})} disabled={isLoading}>
                                 <i className="fa fa-user-shield"></i> Admin
                             </button>
                             <button type="button" className="demo-btn" onClick={() => setForm({...form, username: "teacher", password: "demo"})} disabled={isLoading}>
