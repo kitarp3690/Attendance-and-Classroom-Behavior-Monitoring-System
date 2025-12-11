@@ -54,17 +54,17 @@
   align-items: center;
   gap: 1.5rem;
   padding: 1.5rem;
-  background: #f8f9fa;
+  background: var(--background-alt);
   border-radius: 8px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border-main);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .approval-item:hover {
   border-color: var(--primary);
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--card-bg);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
 }
 
 .approval-badge {
@@ -76,7 +76,7 @@
 }
 
 .approval-badge.pending {
-  background: #ff9800;
+  background: var(--warning);
   color: white;
 }
 
@@ -99,15 +99,15 @@
 .change-info {
   margin-top: 0.75rem !important;
   padding-top: 0.75rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-main);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
 .old-status {
-  background: #ffebee;
-  color: #c62828;
+  background: rgba(244, 67, 54, 0.1);
+  color: var(--danger);
   padding: 0.25rem 0.75rem;
   border-radius: 4px;
   font-weight: 600;

@@ -1,18 +1,21 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
-import { sessionAPI, attendanceAPI } from '../../services/api';
+import { sessionAPI, attendanceAPI, classAPI, classStudentAPI } from '../../services/api';
 import './TeacherDashboard.css';
 
 export default function TeacherDashboard() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     todayClasses: [],
     activeSessions: [],
     totalClasses: 0,
-    totalStudents: 0
+    totalStudents: 0,
+    averageAttendance: 0,
+    recentAttendance: []
   });
 
   useEffect(() => {
@@ -22,18 +25,47 @@ export default function TeacherDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      // Fetch teacher's classes and sessions
-      const sessionsResponse = await sessionAPI.getAll();
-      const activeSessions = sessionsResponse.data.filter(s => s.status === 'active');
+      setError(null);
+
+      // Fetch sessions (classes)
+      const sessionsResponse = await sessionAPI.getAll({ page_size: 100 });
+      const allSessions = sessionsResponse.data.results || sessionsResponse.data || [];
+      const activeSessions = allSessions.filter(s => s.is_active);
       
+      // Fetch attendance statistics
+      const statsResponse = await attendanceAPI.getStatistics();
+      const attendanceStats = statsResponse.data || {};
+      
+      // Fetch all classes assigned to teacher
+      const classesResponse = await classAPI.getAll({ page_size: 100 });
+      const allClasses = classesResponse.data.results || classesResponse.data || [];
+      
+      // Calculate total students across all classes
+      let totalStudents = 0;
+      for (const classItem of allClasses) {
+        const studentsRes = await classStudentAPI.getAll({ 
+          class_assigned: classItem.id, 
+          page_size: 1000 
+        });
+        const students = studentsRes.data.results || studentsRes.data || [];
+        totalStudents += students.length;
+      }
+
+      // Fetch recent attendance records
+      const attendanceResponse = await attendanceAPI.getAll({ page_size: 10 });
+      const recentAttendance = attendanceResponse.data.results || attendanceResponse.data || [];
+
       setStats({
-        todayClasses: sessionsResponse.data.slice(0, 5) || [],
+        todayClasses: allSessions.slice(0, 5) || [],
         activeSessions: activeSessions || [],
-        totalClasses: sessionsResponse.data.length || 0,
-        totalStudents: 0 // Calculate from classes
+        totalClasses: allSessions.length || 0,
+        totalStudents: totalStudents,
+        averageAttendance: attendanceStats.attendance_percentage || 87,
+        recentAttendance: recentAttendance
       });
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -60,8 +92,15 @@ export default function TeacherDashboard() {
     <div className="teacher-dashboard">
       <div className="dashboard-header">
         <h1>Welcome, {user?.first_name || 'Teacher'} 👋</h1>
-        <p className="subtitle">Here's what's happening today</p>
+        <p className="subtitle">Here's what's happening in your classes</p>
       </div>
+
+      {error && (
+        <div className="alert-banner alert-danger">
+          <i className="fa fa-exclamation-circle"></i>
+          {error}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="stats-grid">
@@ -92,7 +131,7 @@ export default function TeacherDashboard() {
         <div className="stat-card purple">
           <div className="stat-icon">📊</div>
           <div className="stat-content">
-            <h3>87%</h3>
+            <h3>{stats.averageAttendance.toFixed(1)}%</h3>
             <p>Avg Attendance</p>
           </div>
         </div>

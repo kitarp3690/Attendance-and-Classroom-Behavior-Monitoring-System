@@ -1,7 +1,8 @@
 .admin-dashboard {
-  padding: 2rem;
+  padding: 1rem;
   max-width: 1400px;
   margin: 0 auto;
+  background: var(--background);
 }
 
 /* User Distribution */
@@ -12,17 +13,17 @@
 }
 
 .distribution-card {
-  background: white;
+  background: var(--card-bg);
   padding: 2rem;
   border-radius: 12px;
   text-align: center;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border-main);
   transition: all 0.2s;
 }
 
 .distribution-card:hover {
   border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
 }
 
 .distribution-icon {
@@ -34,19 +35,19 @@
 }
 
 .distribution-icon.teacher {
-  background: #e3f2fd;
+  background: rgba(33, 150, 243, 0.1);
 }
 
 .distribution-icon.student {
-  background: #f3e5f5;
+  background: rgba(156, 39, 176, 0.1);
 }
 
 .distribution-icon.hod {
-  background: #fff3e0;
+  background: rgba(255, 152, 0, 0.1);
 }
 
 .distribution-icon.admin {
-  background: #e8f5e9;
+  background: rgba(76, 175, 80, 0.1);
 }
 
 .distribution-card h3 {
@@ -63,7 +64,7 @@
 
 .distribution-bar {
   height: 6px;
-  background: #e0e0e0;
+  background: var(--border-main);
   border-radius: 3px;
   overflow: hidden;
   margin-top: 1rem;
@@ -75,7 +76,7 @@
 }
 
 .distribution-bar.teacher .fill {
-  background: #2196f3;
+  background: var(--info);
 }
 
 .distribution-bar.student .fill {
@@ -87,7 +88,7 @@
 }
 
 .distribution-bar.admin .fill {
-  background: #4caf50;
+  background: var(--success);
 }
 
 /* System Health */
@@ -102,31 +103,31 @@
   align-items: center;
   gap: 1rem;
   padding: 1.5rem;
-  background: #f8f9fa;
+  background: var(--background-alt);
   border-radius: 8px;
-  border-left: 4px solid #e0e0e0;
+  border-left: 4px solid var(--border-main);
 }
 
 .health-item.good {
-  border-left-color: #4caf50;
-  background: #f1f8f4;
+  border-left-color: var(--success);
+  background: rgba(76, 175, 80, 0.08);
 }
 
 .health-item.warning {
-  border-left-color: #ff9800;
-  background: #fff8e1;
+  border-left-color: var(--warning);
+  background: rgba(255, 152, 0, 0.08);
 }
 
 .health-item.error {
-  border-left-color: #f44336;
-  background: #ffebee;
+  border-left-color: var(--danger);
+  background: rgba(244, 67, 54, 0.08);
 }
 
 .health-indicator {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #4caf50;
+  background: var(--success);
   box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
   animation: pulse 2s infinite;
 }
@@ -179,7 +180,7 @@
 }
 
 .activity-item:hover {
-  background: #e9ecef;
+  background: var(--background-alt);
 }
 
 .activity-icon {
@@ -189,7 +190,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
 }
 

@@ -31,15 +31,17 @@ export default function AdminDashboard() {
       setLoading(true);
       
       // Fetch all users
-      const usersResponse = await userAPI.getAll();
-      const users = usersResponse.data || [];
+      const usersResponse = await userAPI.getAll({ page_size: 1000 });
+      const users = usersResponse.data.results || usersResponse.data || [];
       
       // Fetch departments
-      const deptsResponse = await departmentAPI.getAll();
+      const deptsResponse = await departmentAPI.getAll({ page_size: 100 });
+      const departments = deptsResponse.data.results || deptsResponse.data || [];
       
       // Fetch sessions
-      const sessionsResponse = await sessionAPI.getAll();
-      const activeSessions = sessionsResponse.data?.filter(s => s.status === 'active') || [];
+      const sessionsResponse = await sessionAPI.getAll({ page_size: 100 });
+      const sessions = sessionsResponse.data.results || sessionsResponse.data || [];
+      const activeSessions = sessions.filter(s => s.is_active) || [];
       
       // Count users by role
       const teachers = users.filter(u => u.role === 'teacher').length;
@@ -49,7 +51,7 @@ export default function AdminDashboard() {
       
       setStats({
         totalUsers: users.length,
-        totalDepartments: deptsResponse.data?.length || 0,
+        totalDepartments: departments.length,
         activeSessions: activeSessions.length,
         todayAttendance: 89,
         usersByRole: {
@@ -241,17 +243,17 @@ export default function AdminDashboard() {
             <span className="icon">👥</span>
             <span className="text">Manage Users</span>
           </button>
-          <button className="action-btn" onClick={() => navigate('/admin/departments')}>
-            <span className="icon">🏢</span>
-            <span className="text">Manage Departments</span>
+          <button className="action-btn" onClick={() => navigate('/admin/classes')}>
+            <span className="icon">🏫</span>
+            <span className="text">Manage Classes</span>
           </button>
-          <button className="action-btn" onClick={() => navigate('/admin/settings')}>
-            <span className="icon">⚙️</span>
-            <span className="text">System Settings</span>
+          <button className="action-btn" onClick={() => navigate('/admin/subjects')}>
+            <span className="icon">📚</span>
+            <span className="text">Manage Subjects</span>
           </button>
-          <button className="action-btn" onClick={() => navigate('/admin/logs')}>
-            <span className="icon">📜</span>
-            <span className="text">View Logs</span>
+          <button className="action-btn" onClick={() => navigate('/admin/reports')}>
+            <span className="icon">📊</span>
+            <span className="text">View Reports</span>
           </button>
         </div>
       </div>

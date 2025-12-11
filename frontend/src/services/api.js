@@ -88,6 +88,16 @@ export const departmentAPI = {
     getStatistics: (id) => api.get(`/attendance/departments/${id}/statistics/`),
 };
 
+// ============ SEMESTER APIS ============
+export const semesterAPI = {
+    getAll: (params = {}) => api.get('/attendance/semesters/', { params }),
+    getById: (id) => api.get(`/attendance/semesters/${id}/`),
+    create: (data) => api.post('/attendance/semesters/', data),
+    update: (id, data) => api.put(`/attendance/semesters/${id}/`, data),
+    delete: (id) => api.delete(`/attendance/semesters/${id}/`),
+    getByDepartment: (departmentId) => api.get('/attendance/semesters/', { params: { department: departmentId } }),
+};
+
 // ============ SUBJECT APIS ============
 export const subjectAPI = {
     getAll: (params = {}) => api.get('/attendance/subjects/', { params }),
@@ -96,6 +106,7 @@ export const subjectAPI = {
     update: (id, data) => api.put(`/attendance/subjects/${id}/`, data),
     delete: (id) => api.delete(`/attendance/subjects/${id}/`),
     search: (query) => api.get('/attendance/subjects/', { params: { search: query } }),
+    getBySemester: (semesterId) => api.get('/attendance/subjects/', { params: { semester: semesterId } }),
 };
 
 // ============ CLASS APIS ============

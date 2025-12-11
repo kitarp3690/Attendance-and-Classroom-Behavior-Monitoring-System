@@ -20,11 +20,41 @@ class Department(models.Model):
     def __str__(self):
         return f"{self.code} - {self.name}"
 
+class Semester(models.Model):
+    """Represents semesters 1-8 for each department"""
+    SEMESTER_CHOICES = [(i, f'Semester {i}') for i in range(1, 9)]
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('upcoming', 'Upcoming'),
+    ]
+    
+    number = models.IntegerField(choices=SEMESTER_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(8)])
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='semesters')
+    academic_year = models.CharField(max_length=20, default='2024-2025')
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('number', 'department', 'academic_year')
+        ordering = ['department', 'number']
+        indexes = [
+            models.Index(fields=['department', 'number']),
+            models.Index(fields=['academic_year']),
+        ]
+
+    def __str__(self):
+        return f"{self.department.code} - Semester {self.number} ({self.academic_year})"
+
 class Subject(models.Model):
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True, null=True)
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='subjects', null=True, blank=True)
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='subjects', null=True, blank=True)
     credits = models.IntegerField(default=3, validators=[MinValueValidator(0)])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -45,7 +75,7 @@ class Class(models.Model):
     description = models.TextField(blank=True, null=True)
     academic_year = models.CharField(max_length=20, default='2024-2025')
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='classes', null=True, blank=True)
-    semester = models.CharField(max_length=20, default='Spring 2024')
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='classes', null=True, blank=True)
     subjects = models.ManyToManyField(Subject, related_name='classes', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -92,8 +122,16 @@ class TeacherAssignment(models.Model):
     )
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='teacher_assignments')
     class_assigned = models.ForeignKey(Class, on_delete=models.CASCADE, related_name='teacher_assignments')
-    semester = models.CharField(max_length=20, default='Spring 2024')
-    cross_department = models.BooleanField(default=False)
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='teacher_assignments', null=True, blank=True)
+    teaching_department = models.ForeignKey(
+        Department,
+        on_delete=models.CASCADE,
+        related_name='teaching_assignments',
+        null=True,
+        blank=True,
+        help_text="Department where this subject is taught (may differ from teacher's home department)"
+    )
+    cross_department = models.BooleanField(default=False, help_text="True if teacher is teaching outside their home department")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -136,6 +174,11 @@ class Session(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='sessions', null=True, blank=True)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(null=True, blank=True)
+    grace_period_minutes = models.IntegerField(
+        default=10,
+        validators=[MinValueValidator(0), MaxValueValidator(60)],
+        help_text="Grace period in minutes before marking late (default: 10 minutes)"
+    )
     is_active = models.BooleanField(default=True)
     attendance_finalized = models.BooleanField(default=False)
     total_students = models.IntegerField(default=0)
@@ -169,6 +212,11 @@ class Attendance(models.Model):
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='attendances')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='absent')
     detected_time = models.DateTimeField(null=True, blank=True)
+    late_entry_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Exact time student was detected if marked as late"
+    )
     marked_at = models.DateTimeField(auto_now_add=True)
     marked_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

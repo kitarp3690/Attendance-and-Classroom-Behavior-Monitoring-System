@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Department, Subject, Class, ClassStudent, TeacherAssignment,
+    Department, Semester, Subject, Class, ClassStudent, TeacherAssignment,
     ClassSchedule, Session, Attendance, AttendanceChange,
     AttendanceReport, FaceEmbedding, Notification
 )
@@ -11,6 +11,15 @@ class DepartmentAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'hod', 'contact_email')
     search_fields = ('code', 'name')
     ordering = ('code',)
+
+
+@admin.register(Semester)
+class SemesterAdmin(admin.ModelAdmin):
+    list_display = ('number', 'department', 'academic_year', 'status', 'start_date', 'end_date')
+    list_filter = ('department', 'academic_year', 'status', 'number')
+    search_fields = ('academic_year',)
+    ordering = ('department', 'number')
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(Subject)

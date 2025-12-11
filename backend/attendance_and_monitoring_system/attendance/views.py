@@ -7,12 +7,12 @@ from django.db.models import Q
 from datetime import datetime, timedelta
 
 from .models import (
-    Department, Subject, Class, ClassStudent, TeacherAssignment, 
+    Department, Semester, Subject, Class, ClassStudent, TeacherAssignment, 
     ClassSchedule, Session, Attendance, AttendanceChange, AttendanceReport,
     FaceEmbedding, Notification
 )
 from .serializers import (
-    DepartmentSerializer, SubjectSerializer, ClassSerializer, ClassDetailSerializer,
+    DepartmentSerializer, SemesterSerializer, SubjectSerializer, ClassSerializer, ClassDetailSerializer,
     ClassStudentSerializer, TeacherAssignmentSerializer, ClassScheduleSerializer,
     SessionSerializer, AttendanceSerializer, AttendanceChangeSerializer,
     AttendanceReportSerializer, FaceEmbeddingSerializer, NotificationSerializer,
@@ -72,6 +72,34 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         })
 
 
+class SemesterViewSet(viewsets.ModelViewSet):
+    """ViewSet for Semester model - manages 8 semesters per department"""
+    queryset = Semester.objects.all().select_related('department')
+    serializer_class = SemesterSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['academic_year']
+    ordering_fields = ['department', 'number', 'start_date']
+    ordering = ['department', 'number']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        
+        # Filter by department for non-admins
+        if user.role == 'hod' and user.department:
+            queryset = queryset.filter(department=user.department)
+        elif user.role in ['teacher', 'student'] and user.department:
+            queryset = queryset.filter(department=user.department)
+        
+        # Filter by department query param
+        department_id = self.request.query_params.get('department')
+        if department_id:
+            queryset = queryset.filter(department_id=department_id)
+        
+        return queryset
+
+
 class SubjectViewSet(viewsets.ModelViewSet):
     """ViewSet for Subject model"""
     queryset = Subject.objects.all()
@@ -89,6 +117,11 @@ class SubjectViewSet(viewsets.ModelViewSet):
         # Filter by department for non-admins
         if user.role in ['hod', 'teacher', 'student'] and user.department:
             queryset = queryset.filter(department=user.department)
+        
+        # Filter by semester query param
+        semester_id = self.request.query_params.get('semester')
+        if semester_id:
+            queryset = queryset.filter(semester_id=semester_id)
         
         return queryset
 
@@ -362,12 +395,13 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def mark_attendance(self, request):
-        """Mark or update attendance for a student"""
+        """Mark or update attendance for a student with late entry detection"""
         student_id = request.data.get('student_id')
         session_id = request.data.get('session_id')
         status_value = request.data.get('status', 'present')
         confidence = request.data.get('confidence_score')
         notes = request.data.get('notes', '')
+        detected_time = request.data.get('detected_time')  # AI detection time
         
         if not student_id or not session_id:
             return Response(
@@ -376,22 +410,83 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             )
         
         try:
+            session = Session.objects.get(id=session_id)
+            current_time = timezone.now()
+            
+            # Calculate if student is late (AI-based or manual)
+            if detected_time:
+                detection_dt = timezone.datetime.fromisoformat(detected_time.replace('Z', '+00:00'))
+            else:
+                detection_dt = current_time
+            
+            # Auto-detect late status based on grace period
+            grace_period_delta = timedelta(minutes=session.grace_period_minutes)
+            grace_deadline = session.start_time + grace_period_delta
+            
+            # If detected after grace period, mark as late (unless manually set)
+            if detection_dt > grace_deadline and status_value == 'present':
+                status_value = 'late'
+            
+            defaults = {
+                'status': status_value,
+                'marked_by': request.user,
+                'confidence_score': confidence,
+                'notes': notes,
+                'marked_at': current_time,
+                'detected_time': detection_dt
+            }
+            
+            # Add late_entry_time if status is late
+            if status_value == 'late':
+                defaults['late_entry_time'] = detection_dt
+            
             attendance, created = Attendance.objects.update_or_create(
                 student_id=student_id,
                 session_id=session_id,
-                defaults={
-                    'status': status_value,
-                    'marked_by': request.user,
-                    'confidence_score': confidence,
-                    'notes': notes,
-                    'marked_at': timezone.now()
-                }
+                defaults=defaults
             )
+            
+            # Generate low attendance warning if needed
+            self._check_and_generate_warning(student_id, session.subject_id)
             
             serializer = self.get_serializer(attendance)
             return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        except Session.DoesNotExist:
+            return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def _check_and_generate_warning(self, student_id, subject_id):
+        """Check attendance percentage and generate warning if below threshold"""
+        threshold = 75.0  # 75% attendance threshold
+        
+        # Calculate attendance percentage for this subject
+        total_sessions = Session.objects.filter(
+            subject_id=subject_id,
+            attendance_finalized=True
+        ).count()
+        
+        if total_sessions == 0:
+            return
+        
+        present_count = Attendance.objects.filter(
+            student_id=student_id,
+            session__subject_id=subject_id,
+            status__in=['present', 'late']
+        ).count()
+        
+        percentage = (present_count / total_sessions) * 100
+        
+        # Generate warning if below threshold
+        if percentage < threshold:
+            subject = Subject.objects.get(id=subject_id)
+            Notification.objects.create(
+                user_id=student_id,
+                category='alert',
+                title='Low Attendance Warning',
+                message=f'Your attendance in {subject.name} is {percentage:.1f}%, below the required {threshold}%.',
+                related_attendance=None
+            )
 
     @action(detail=False, methods=['post'])
     def mark_multiple(self, request):

@@ -1,22 +1,49 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { attendanceReportAPI, attendanceAPI, subjectAPI } from "../../../services/api";
 import "./StudentPages.css";
 
 const ViewAttendance = () => {
-    const [attendanceData] = useState([
-        { id: 1, subject: "Mathematics", date: "2024-11-14", status: "Present", remark: "On time" },
-        { id: 2, subject: "Physics", date: "2024-11-14", status: "Present", remark: "On time" },
-        { id: 3, subject: "Mathematics", date: "2024-11-13", status: "Absent", remark: "Sick" },
-        { id: 4, subject: "Physics", date: "2024-11-13", status: "Late", remark: "Traffic" },
-        { id: 5, subject: "Mathematics", date: "2024-11-12", status: "Present", remark: "On time" },
-        { id: 6, subject: "Data Structures", date: "2024-11-12", status: "Present", remark: "On time" },
-        { id: 7, subject: "Mathematics", date: "2024-11-11", status: "Late", remark: "Technical issue" },
-        { id: 8, subject: "Physics", date: "2024-11-11", status: "Present", remark: "On time" },
-    ]);
-
+    const [attendanceData, setAttendanceData] = useState([]);
+    const [subjects, setSubjects] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [filterSubject, setFilterSubject] = useState("all");
     const [filterStatus, setFilterStatus] = useState("all");
 
-    const subjectList = ["all", "Mathematics", "Physics", "Data Structures", "Digital Logic"];
+    useEffect(() => {
+        fetchAttendanceData();
+        fetchSubjects();
+    }, []);
+
+    const fetchAttendanceData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await attendanceAPI.getAll({ page_size: 1000 });
+            const data = response.data.results || response.data || [];
+            setAttendanceData(data.map(record => ({
+                id: record.id,
+                subject: record.session?.subject?.name || "Unknown",
+                date: new Date(record.session?.date || record.created_at).toISOString().split('T')[0],
+                status: record.status,
+                remark: record.remarks || "-"
+            })));
+        } catch (err) {
+            console.error('Error fetching attendance:', err);
+            setError('Failed to load attendance data');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchSubjects = async () => {
+        try {
+            const response = await subjectAPI.getAll({ page_size: 100 });
+            setSubjects(response.data.results || response.data || []);
+        } catch (err) {
+            console.error('Error fetching subjects:', err);
+        }
+    };
 
     const filteredData = attendanceData.filter(record => {
         const subjectMatch = filterSubject === "all" || record.subject === filterSubject;
@@ -26,18 +53,36 @@ const ViewAttendance = () => {
 
     const stats = {
         total: attendanceData.length,
-        present: attendanceData.filter(r => r.status === "Present").length,
-        absent: attendanceData.filter(r => r.status === "Absent").length,
-        late: attendanceData.filter(r => r.status === "Late").length,
+        present: attendanceData.filter(r => r.status === "present").length,
+        absent: attendanceData.filter(r => r.status === "absent").length,
+        late: attendanceData.filter(r => r.status === "late").length,
     };
 
-    const percentage = ((stats.present / stats.total) * 100).toFixed(1);
+    const percentage = stats.total > 0 ? ((stats.present / stats.total) * 100).toFixed(1) : 0;
+
+    if (loading) {
+        return (
+            <div className="student-page">
+                <div className="loading-spinner">
+                    <div className="spinner"></div>
+                    <p>Loading attendance...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="student-page">
             <div className="page-header">
                 <h1><i className="fa fa-book"></i> View My Attendance</h1>
             </div>
+
+            {error && (
+                <div className="alert-banner alert-danger">
+                    <i className="fa fa-exclamation-circle"></i>
+                    {error}
+                </div>
+            )}
 
             <div className="stats-overview">
                 <div className="overview-card">
@@ -83,7 +128,8 @@ const ViewAttendance = () => {
                     onChange={(e) => setFilterSubject(e.target.value)}
                     className="filter-select"
                 >
-                    {subjectList.map(s => <option key={s} value={s}>{s === "all" ? "All Subjects" : s}</option>)}
+                    <option value="all">All Subjects</option>
+                    {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
                 <select 
                     value={filterStatus}

@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
-import { attendanceChangeAPI } from '../../services/api';
+import { attendanceChangeAPI, attendanceReportAPI, classAPI, userAPI } from '../../services/api';
 import './HODDashboard.css';
 
 export default function HODDashboard() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     pendingApprovals: 0,
     departmentAttendance: 0,
     totalStudents: 0,
     totalTeachers: 0,
-    recentApprovals: []
+    recentApprovals: [],
+    lowAttendanceStudents: []
   });
 
   useEffect(() => {
@@ -23,18 +25,47 @@ export default function HODDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      // Fetch HOD dashboard data
+      setError(null);
+
+      // Fetch pending approvals
       const approvalsResponse = await attendanceChangeAPI.getPending();
+      const pendingApprovals = approvalsResponse.data.results || approvalsResponse.data || [];
+
+      // Fetch low attendance students
+      const lowAttendanceResponse = await attendanceReportAPI.getLowAttendance(75);
+      const lowAttendanceStudents = lowAttendanceResponse.data.results || lowAttendanceResponse.data || [];
+
+      // Fetch all classes to count students
+      const classesResponse = await classAPI.getAll({ page_size: 100 });
+      const classes = classesResponse.data.results || classesResponse.data || [];
       
+      let totalStudents = 0;
+      for (const classItem of classes) {
+        totalStudents += classItem.strength || 0;
+      }
+
+      // Fetch all teachers
+      const teachersResponse = await userAPI.getAll({ role: 'teacher', page_size: 1000 });
+      const teachers = teachersResponse.data.results || teachersResponse.data || [];
+
+      // Calculate department attendance
+      const reportsResponse = await attendanceReportAPI.getAll({ page_size: 1000 });
+      const reports = reportsResponse.data.results || reportsResponse.data || [];
+      const avgAttendance = reports.length > 0 
+        ? (reports.reduce((sum, r) => sum + (r.percentage || 0), 0) / reports.length).toFixed(1)
+        : 0;
+
       setStats({
-        pendingApprovals: approvalsResponse.data?.length || 0,
-        departmentAttendance: 87,
-        totalStudents: 150,
-        totalTeachers: 20,
-        recentApprovals: approvalsResponse.data?.slice(0, 5) || []
+        pendingApprovals: pendingApprovals.length,
+        departmentAttendance: parseFloat(avgAttendance),
+        totalStudents: totalStudents,
+        totalTeachers: teachers.length,
+        recentApprovals: pendingApprovals.slice(0, 5),
+        lowAttendanceStudents: lowAttendanceStudents.slice(0, 5)
       });
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -61,9 +92,19 @@ export default function HODDashboard() {
     <div className="hod-dashboard">
       <div className="dashboard-header">
         <h1>HOD Dashboard 🎓</h1>
-        <p className="subtitle">Department: Computer Engineering</p>
+        <p className="subtitle">Department Overview</p>
         <p className="subtitle">HOD: {user?.first_name} {user?.last_name}</p>
       </div>
+
+      {error && (
+        <div className="alert-banner alert-danger">
+          <div className="alert-icon">❌</div>
+          <div className="alert-content">
+            <h3>Error Loading Data</h3>
+            <p>{error}</p>
+          </div>
+        </div>
+      )}
 
       {/* Pending Approvals Alert */}
       {stats.pendingApprovals > 0 && (
@@ -92,7 +133,7 @@ export default function HODDashboard() {
         <div className="stat-card blue">
           <div className="stat-icon">📊</div>
           <div className="stat-content">
-            <h3>{stats.departmentAttendance}%</h3>
+            <h3>{stats.departmentAttendance.toFixed(1)}%</h3>
             <p>Dept Attendance</p>
           </div>
         </div>
@@ -187,21 +228,21 @@ export default function HODDashboard() {
           <h2>⚡ Quick Actions</h2>
         </div>
         <div className="quick-actions">
-          <button className="action-btn primary" onClick={handleViewApprovals}>
-            <span className="icon">📝</span>
-            <span className="text">Review Approvals</span>
+          <button className="action-btn primary" onClick={() => navigate('/hod/approve-changes')}>
+            <span className="icon">✅</span>
+            <span className="text">Approve Changes</span>
           </button>
           <button className="action-btn" onClick={() => navigate('/hod/analytics')}>
             <span className="icon">📊</span>
             <span className="text">View Analytics</span>
           </button>
-          <button className="action-btn" onClick={() => navigate('/hod/department')}>
-            <span className="icon">🏢</span>
-            <span className="text">Manage Department</span>
-          </button>
           <button className="action-btn" onClick={() => navigate('/hod/reports')}>
             <span className="icon">📄</span>
             <span className="text">Generate Reports</span>
+          </button>
+          <button className="action-btn" onClick={() => navigate('/hod/dashboard')}>
+            <span className="icon">🏢</span>
+            <span className="text">Department Info</span>
           </button>
         </div>
       </div>

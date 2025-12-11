@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import (
-    Department, Subject, Class, ClassStudent, TeacherAssignment,
+    Department, Semester, Subject, Class, ClassStudent, TeacherAssignment,
     ClassSchedule, Session, Attendance, AttendanceChange,
     AttendanceReport, FaceEmbedding, Notification
 )
@@ -18,6 +18,21 @@ class DepartmentSerializer(serializers.ModelSerializer):
     
     def get_hod_name(self, obj):
         return obj.hod.get_full_name() if obj.hod else None
+
+
+class SemesterSerializer(serializers.ModelSerializer):
+    """Serializer for Semester model"""
+    department_name = serializers.SerializerMethodField()
+    semester_display = serializers.CharField(source='get_number_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    class Meta:
+        model = Semester
+        fields = ['id', 'number', 'semester_display', 'department', 'department_name', 'academic_year', 'start_date', 'end_date', 'status', 'status_display', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_department_name(self, obj):
+        return obj.department.name if obj.department else None
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -46,29 +61,37 @@ class UserDetailSerializer(serializers.ModelSerializer):
 class SubjectSerializer(serializers.ModelSerializer):
     """Serializer for Subject model"""
     department_name = serializers.SerializerMethodField()
+    semester_number = serializers.SerializerMethodField()
     
     class Meta:
         model = Subject
-        fields = ['id', 'name', 'code', 'description', 'department', 'department_name', 'credits', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'code', 'description', 'department', 'department_name', 'semester', 'semester_number', 'credits', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_department_name(self, obj):
         return obj.department.name if obj.department else None
+    
+    def get_semester_number(self, obj):
+        return obj.semester.number if obj.semester else None
 
 
 class ClassSerializer(serializers.ModelSerializer):
     """Serializer for Class model"""
     subjects = SubjectSerializer(many=True, read_only=True)
     department_name = serializers.SerializerMethodField()
+    semester_number = serializers.SerializerMethodField()
     student_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Class
-        fields = ['id', 'name', 'section', 'description', 'academic_year', 'department', 'department_name', 'semester', 'subjects', 'student_count', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'section', 'description', 'academic_year', 'department', 'department_name', 'semester', 'semester_number', 'subjects', 'student_count', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_department_name(self, obj):
         return obj.department.name if obj.department else None
+    
+    def get_semester_number(self, obj):
+        return obj.semester.number if obj.semester else None
     
     def get_student_count(self, obj):
         return obj.enrolled_students.filter(enrollment_status='active').count()

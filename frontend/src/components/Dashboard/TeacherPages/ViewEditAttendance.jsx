@@ -1,41 +1,122 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { attendanceAPI, attendanceChangeAPI, subjectAPI } from "../../../services/api";
 import "./TeacherPages.css";
 
 const ViewEditAttendance = () => {
-    const [attendanceData, setAttendanceData] = useState([
-        { id: 1, student: "John Doe", rollNo: "2025001", date: "2024-11-14", status: "Present", subject: "Mathematics" },
-        { id: 2, student: "Jane Smith", rollNo: "2025002", date: "2024-11-14", status: "Absent", subject: "Mathematics" },
-        { id: 3, student: "Mike Johnson", rollNo: "2025003", date: "2024-11-13", status: "Late", subject: "Mathematics" },
-        { id: 4, student: "Sarah Williams", rollNo: "2025004", date: "2024-11-14", status: "Present", subject: "Mathematics" },
-        { id: 5, student: "David Brown", rollNo: "2025005", date: "2024-11-13", status: "Present", subject: "Mathematics" },
-    ]);
-
+    const [attendanceData, setAttendanceData] = useState([]);
+    const [subjects, setSubjects] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    
     const [editingId, setEditingId] = useState(null);
     const [editStatus, setEditStatus] = useState("");
+    const [editReason, setEditReason] = useState("");
     const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [filterSubject, setFilterSubject] = useState("all");
+    const [showRequestModal, setShowRequestModal] = useState(false);
+    const [selectedForChange, setSelectedForChange] = useState(null);
 
-    const filteredData = attendanceData.filter(record => record.date === filterDate);
+    useEffect(() => {
+        fetchAttendanceData();
+        fetchSubjects();
+    }, [filterDate, filterSubject]);
 
-    const handleEdit = (id, currentStatus) => {
-        setEditingId(id);
-        setEditStatus(currentStatus);
+    const fetchAttendanceData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await attendanceAPI.getAll({ page_size: 1000 });
+            const data = response.data.results || response.data || [];
+            
+            let filtered = data.map(record => ({
+                id: record.id,
+                student: record.student?.first_name + ' ' + record.student?.last_name,
+                studentId: record.student?.id,
+                rollNo: record.student?.student_id,
+                date: new Date(record.session?.date || record.created_at).toISOString().split('T')[0],
+                status: record.status,
+                subject: record.session?.subject?.name || 'Unknown',
+                sessionId: record.session?.id
+            }));
+
+            if (filterDate) {
+                filtered = filtered.filter(r => r.date === filterDate);
+            }
+            if (filterSubject !== 'all') {
+                filtered = filtered.filter(r => r.subject === filterSubject);
+            }
+
+            setAttendanceData(filtered);
+        } catch (err) {
+            console.error('Error fetching attendance:', err);
+            setError('Failed to load attendance records');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleSave = (id) => {
-        setAttendanceData(attendanceData.map(record => 
-            record.id === id ? {...record, status: editStatus} : record
-        ));
-        setEditingId(null);
+    const fetchSubjects = async () => {
+        try {
+            const response = await subjectAPI.getAll({ page_size: 100 });
+            setSubjects(response.data.results || response.data || []);
+        } catch (err) {
+            console.error('Error fetching subjects:', err);
+        }
+    };
+
+    const handleEdit = (record) => {
+        setSelectedForChange(record);
+        setEditStatus(record.status);
+        setEditReason("");
+        setShowRequestModal(true);
+    };
+
+    const handleRequestChange = async () => {
+        if (!editReason.trim()) {
+            alert('Please provide a reason for the change');
+            return;
+        }
+
+        try {
+            await attendanceChangeAPI.create({
+                attendance: selectedForChange.id,
+                old_status: selectedForChange.status,
+                new_status: editStatus,
+                reason: editReason
+            });
+            alert('Change request submitted for approval');
+            setShowRequestModal(false);
+            fetchAttendanceData();
+        } catch (err) {
+            console.error('Error:', err);
+            alert('Failed to submit change request');
+        }
     };
 
     const handleCancel = () => {
-        setEditingId(null);
+        setShowRequestModal(false);
     };
 
-    const handleDelete = (id) => {
-        if (confirm("Are you sure you want to delete this record?")) {
-            setAttendanceData(attendanceData.filter(record => record.id !== id));
+    const handleDelete = async (id) => {
+        if (window.confirm("Are you sure you want to delete this record?")) {
+            try {
+                await attendanceAPI.delete(id);
+                alert('Record deleted');
+                fetchAttendanceData();
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Failed to delete record');
+            }
         }
+    };
+
+    const filteredData = attendanceData.filter(record => record.date === filterDate);
+
+    const stats = {
+        total: filteredData.length,
+        present: filteredData.filter(d => d.status === 'present').length,
+        absent: filteredData.filter(d => d.status === 'absent').length,
+        late: filteredData.filter(d => d.status === 'late').length
     };
 
     return (
@@ -44,6 +125,13 @@ const ViewEditAttendance = () => {
                 <h1><i className="fa fa-edit"></i> View/Edit Attendance</h1>
                 <button className="btn-primary"><i className="fa fa-download"></i> Export</button>
             </div>
+
+            {error && (
+                <div className="alert-banner alert-danger">
+                    <i className="fa fa-exclamation-circle"></i>
+                    {error}
+                </div>
+            )}
 
             <div className="filters-section">
                 <div className="filter-item">
@@ -54,18 +142,28 @@ const ViewEditAttendance = () => {
                         onChange={(e) => setFilterDate(e.target.value)}
                     />
                 </div>
+                <div className="filter-item">
+                    <label>Filter by Subject</label>
+                    <select 
+                        value={filterSubject}
+                        onChange={(e) => setFilterSubject(e.target.value)}
+                    >
+                        <option value="all">All Subjects</option>
+                        {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    </select>
+                </div>
                 <div className="filter-stats">
                     <div className="stat">
-                        <strong>{filteredData.length}</strong> Total Records
+                        <strong>{stats.total}</strong> Total Records
                     </div>
                     <div className="stat">
-                        <strong style={{color: 'var(--success)'}}>{filteredData.filter(d => d.status === 'Present').length}</strong> Present
+                        <strong style={{color: 'var(--success)'}}>{stats.present}</strong> Present
                     </div>
                     <div className="stat">
-                        <strong style={{color: 'var(--danger)'}}>{filteredData.filter(d => d.status === 'Absent').length}</strong> Absent
+                        <strong style={{color: 'var(--danger)'}}>{stats.absent}</strong> Absent
                     </div>
                     <div className="stat">
-                        <strong style={{color: 'var(--warning)'}}>{filteredData.filter(d => d.status === 'Late').length}</strong> Late
+                        <strong style={{color: 'var(--warning)'}}>{stats.late}</strong> Late
                     </div>
                 </div>
             </div>
@@ -76,6 +174,7 @@ const ViewEditAttendance = () => {
                         <tr>
                             <th>Roll No</th>
                             <th>Student Name</th>
+                            <th>Subject</th>
                             <th>Date</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -87,37 +186,90 @@ const ViewEditAttendance = () => {
                                 <tr key={record.id}>
                                     <td>{record.rollNo}</td>
                                     <td>{record.student}</td>
+                                    <td>{record.subject}</td>
                                     <td>{record.date}</td>
                                     <td>
-                                        {editingId === record.id ? (
-                                            <select 
-                                                value={editStatus}
-                                                onChange={(e) => setEditStatus(e.target.value)}
-                                                className="edit-status-select"
-                                            >
-                                                <option value="Present">Present</option>
-                                                <option value="Absent">Absent</option>
-                                                <option value="Late">Late</option>
-                                            </select>
-                                        ) : (
-                                            <span className={`status-badge status-${record.status.toLowerCase()}`}>
-                                                {record.status}
-                                            </span>
-                                        )}
+                                        <span className={`status-badge status-${record.status.toLowerCase()}`}>
+                                            {record.status}
+                                        </span>
                                     </td>
                                     <td>
-                                        {editingId === record.id ? (
-                                            <div className="action-buttons">
-                                                <button 
-                                                    className="btn-icon btn-save"
-                                                    onClick={() => handleSave(record.id)}
-                                                    title="Save"
-                                                >
-                                                    <i className="fa fa-check"></i>
-                                                </button>
-                                                <button 
-                                                    className="btn-icon btn-cancel"
-                                                    onClick={handleCancel}
+                                        <div className="action-buttons">
+                                            <button 
+                                                className="btn-icon btn-edit"
+                                                onClick={() => handleEdit(record)}
+                                                title="Request Change"
+                                            >
+                                                <i className="fa fa-edit"></i>
+                                            </button>
+                                            <button 
+                                                className="btn-icon btn-delete"
+                                                onClick={() => handleDelete(record.id)}
+                                                title="Delete"
+                                            >
+                                                <i className="fa fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="6" className="empty-message">No attendance records found</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Change Request Modal */}
+            {showRequestModal && selectedForChange && (
+                <div className="modal-overlay" onClick={() => setShowRequestModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Request Attendance Change</h2>
+                            <button className="btn-close" onClick={() => setShowRequestModal(false)}>×</button>
+                        </div>
+                        <form onSubmit={(e) => { e.preventDefault(); handleRequestChange(); }}>
+                            <div className="form-group">
+                                <label>Student</label>
+                                <input type="text" value={selectedForChange.student} disabled />
+                            </div>
+                            <div className="form-group">
+                                <label>Current Status</label>
+                                <input type="text" value={selectedForChange.status} disabled />
+                            </div>
+                            <div className="form-group">
+                                <label>New Status</label>
+                                <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
+                                    <option value="present">Present</option>
+                                    <option value="absent">Absent</option>
+                                    <option value="late">Late</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Reason for Change *</label>
+                                <textarea 
+                                    value={editReason}
+                                    onChange={(e) => setEditReason(e.target.value)}
+                                    placeholder="Explain why you're requesting this change..."
+                                    rows="4"
+                                    required
+                                ></textarea>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn-secondary" onClick={handleCancel}>Cancel</button>
+                                <button type="submit" className="btn-primary">Submit Request</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default ViewEditAttendance;
                                                     title="Cancel"
                                                 >
                                                     <i className="fa fa-times"></i>

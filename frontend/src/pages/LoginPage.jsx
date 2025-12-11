@@ -71,29 +71,12 @@ export default function LoginPage({ theme, onToggleTheme }) {
             <div className="login-theme-toggle">
                 <DarkLightToggle theme={theme} onToggle={onToggleTheme} />
             </div>
+            <div className="login-page-header">
+                <h1 className="login-page-title">Khwopa Engineering College</h1>
+            </div>
             <div className="login-container">
                 <div className="login-info">
                     <div className="login-info-content">
-                        <h1 className="login-info-title">Welcome Back!</h1>
-                        <p className="login-info-subtitle">Automated Attendance System with AI-Powered Face Recognition</p>
-                        <div className="login-features">
-                            <div className="feature-item">
-                                <i className="fa fa-check-circle"></i>
-                                <span>Real-time Face Recognition</span>
-                            </div>
-                            <div className="feature-item">
-                                <i className="fa fa-check-circle"></i>
-                                <span>Automated Attendance Tracking</span>
-                            </div>
-                            <div className="feature-item">
-                                <i className="fa fa-check-circle"></i>
-                                <span>Comprehensive Analytics</span>
-                            </div>
-                            <div className="feature-item">
-                                <i className="fa fa-check-circle"></i>
-                                <span>Multi-Role Dashboard</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 <div className="login-form-container">
@@ -103,11 +86,8 @@ export default function LoginPage({ theme, onToggleTheme }) {
                                 <i className="fa fa-user-graduate"></i>
                             </div>
                             <h2 className="login-title">Sign In</h2>
-                            <p className="login-subtitle">Access your attendance dashboard (Student / Teacher / HOD / Admin)</p>
-                            <div className="login-roles">
                             <p className="login-subtitle">Enter your credentials to access your account</p>
-                            </div>
-                            </div>
+                        </div>
                         <div className="login-group">
                             <label htmlFor="username"><i className="fa fa-user"></i> Username</label>
                             <input
@@ -178,20 +158,6 @@ export default function LoginPage({ theme, onToggleTheme }) {
                                 </>
                             )}
                         </button>
-                        <div className="login-divider">
-                            <span>Quick Access</span>
-                        </div>
-                        <div className="demo-accounts">
-                            <button type="button" className="demo-btn" onClick={() => setForm({...form, username: "admin", password: "admin123456"})} disabled={isLoading}>
-                                <i className="fa fa-user-shield"></i> Admin
-                            </button>
-                            <button type="button" className="demo-btn" onClick={() => setForm({...form, username: "teacher", password: "demo"})} disabled={isLoading}>
-                                <i className="fa fa-chalkboard-teacher"></i> Teacher
-                            </button>
-                            <button type="button" className="demo-btn" onClick={() => setForm({...form, username: "student", password: "demo"})} disabled={isLoading}>
-                                <i className="fa fa-user-graduate"></i> Student
-                            </button>
-                        </div>
                     </form>
                 </div>
             </div>

@@ -188,15 +188,15 @@ export default function StudentDashboard() {
             <span className="icon">📊</span>
             <span className="text">View Attendance</span>
           </button>
-          <button className="action-btn" onClick={() => navigate('/student/calendar')}>
-            <span className="icon">📅</span>
-            <span className="text">Attendance Calendar</span>
+          <button className="action-btn" onClick={() => navigate('/student/notifications')}>
+            <span className="icon">🔔</span>
+            <span className="text">Notifications</span>
           </button>
-          <button className="action-btn" onClick={() => navigate('/student/classes')}>
+          <button className="action-btn" onClick={() => navigate('/student/dashboard')}>
             <span className="icon">📚</span>
-            <span className="text">My Classes</span>
+            <span className="text">My Dashboard</span>
           </button>
-          <button className="action-btn" onClick={() => navigate('/student/settings')}>
+          <button className="action-btn" onClick={() => navigate('/student/dashboard')}>
             <span className="icon">⚙️</span>
             <span className="text">Settings</span>
           </button>
