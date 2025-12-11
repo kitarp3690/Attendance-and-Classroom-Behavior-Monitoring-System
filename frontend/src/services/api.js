@@ -72,14 +72,14 @@ export const authAPI = {
 
 // ============ USER APIS ============
 export const userAPI = {
-    getAll: (params = {}) => api.get('/users/', { params }),
-    getById: (id) => api.get(`/users/${id}/`),
-    create: (data) => api.post('/users/', data),
-    update: (id, data) => api.put(`/users/${id}/`, data),
-    delete: (id) => api.delete(`/users/${id}/`),
+    getAll: (params = {}) => api.get('/auth/', { params }),
+    getById: (id) => api.get(`/auth/${id}/`),
+    create: (data) => api.post('/auth/', data),
+    update: (id, data) => api.put(`/auth/${id}/`, data),
+    delete: (id) => api.delete(`/auth/${id}/`),
     getMe: () => api.get('/auth/me/'),
-    updateMe: (data) => api.put('/auth/update_me/', data),
-    changePassword: (data) => api.post('/auth/change_password/', data),
+    updateMe: (data) => api.put('/auth/me/', data),
+    changePassword: (data) => api.post('/auth/change-password/', data),
 };
 
 // ============ DEPARTMENT APIS ============

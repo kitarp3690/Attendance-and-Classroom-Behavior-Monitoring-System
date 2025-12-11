@@ -32,14 +32,19 @@ export default function AdminDashboard() {
       
       // Fetch all users
       const usersResponse = await userAPI.getAll({ page_size: 1000 });
+      console.log('Users Response:', usersResponse);
       const users = usersResponse.data.results || usersResponse.data || [];
+      console.log('Users Array:', users);
       
       // Fetch departments
       const deptsResponse = await departmentAPI.getAll({ page_size: 100 });
+      console.log('Departments Response:', deptsResponse);
       const departments = deptsResponse.data.results || deptsResponse.data || [];
+      console.log('Departments Array:', departments);
       
       // Fetch sessions
       const sessionsResponse = await sessionAPI.getAll({ page_size: 100 });
+      console.log('Sessions Response:', sessionsResponse);
       const sessions = sessionsResponse.data.results || sessionsResponse.data || [];
       const activeSessions = sessions.filter(s => s.is_active) || [];
       
