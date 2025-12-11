@@ -6,7 +6,7 @@ import ChangePasswordModal from "./Modals/ChangePasswordModal";
 import LogoutModal from "./Modals/LogoutModal";
 
 const AvatarDropdown = () => {
-    const { user, setUser } = useContext(AuthContext);
+    const { user, logout } = useContext(AuthContext);
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const [profileModal, setProfileModal] = useState(false);
@@ -14,14 +14,8 @@ const AvatarDropdown = () => {
     const [logoutModal, setLogoutModal] = useState(false);
 
     const handleLogout = () => {
-        // Clear localStorage and sessionStorage
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user_role');
-        sessionStorage.clear();
-        
-        // Update context
-        setUser(null);
+        // Use logout from context
+        logout();
         
         // Redirect to login
         navigate('/login');
@@ -80,12 +74,10 @@ const AvatarDropdown = () => {
                     phone: user?.phone || "",
                     avatar: user?.avatar || ""
                 }}
-                onSave={() => setProfileModal(false)} 
             />
             <ChangePasswordModal 
                 open={changePwdModal} 
                 onClose={() => setChangePwdModal(false)} 
-                onSave={() => setChangePwdModal(false)} 
             />
             <LogoutModal 
                 open={logoutModal} 

@@ -17,6 +17,10 @@ api.interceptors.request.use(
         const token = localStorage.getItem('access_token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`);
+            console.log('Auth Token:', token ? `${token.substring(0, 20)}...` : 'None');
+        } else {
+            console.warn('No access token found for request:', config.url);
         }
         return config;
     },
@@ -73,9 +77,9 @@ export const userAPI = {
     create: (data) => api.post('/users/', data),
     update: (id, data) => api.put(`/users/${id}/`, data),
     delete: (id) => api.delete(`/users/${id}/`),
-    getMe: () => api.get('/users/me/'),
-    updateMe: (data) => api.put('/users/me/', data),
-    changePassword: (data) => api.post('/users/change-password/', data),
+    getMe: () => api.get('/auth/me/'),
+    updateMe: (data) => api.put('/auth/update_me/', data),
+    changePassword: (data) => api.post('/auth/change_password/', data),
 };
 
 // ============ DEPARTMENT APIS ============

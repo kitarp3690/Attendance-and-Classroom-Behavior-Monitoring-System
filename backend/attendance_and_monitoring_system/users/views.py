@@ -86,17 +86,30 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def change_password(self, request):
         """Change current user password"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         user = request.user
         old_password = request.data.get('old_password')
         new_password = request.data.get('new_password')
+        
+        logger.info(f"Password change request from user: {user.username}")
+        logger.info(f"Request data keys: {request.data.keys()}")
+        logger.info(f"Old password received: {'Yes' if old_password else 'No'}")
+        logger.info(f"New password received: {'Yes' if new_password else 'No'}")
 
         if not old_password or not new_password:
+            logger.warning("Missing old_password or new_password")
             return Response(
                 {"error": "Both old_password and new_password are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not user.check_password(old_password):
+        password_check = user.check_password(old_password)
+        logger.info(f"Password check result: {password_check}")
+        
+        if not password_check:
+            logger.warning(f"Old password incorrect for user: {user.username}")
             return Response(
                 {"error": "Old password is incorrect"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -104,6 +117,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
         user.set_password(new_password)
         user.save()
+        logger.info(f"Password changed successfully for user: {user.username}")
         return Response({"message": "Password changed successfully"})
 
     def create(self, request, *args, **kwargs):

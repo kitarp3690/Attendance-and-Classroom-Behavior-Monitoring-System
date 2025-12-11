@@ -1,39 +1,25 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import "./ProfileModal.css";
 
-export default function ProfileModal({ open, onClose, user = { name: "", email: "", phone: "", avatar: "" }, onSave }) {
-    const [form, setForm] = useState(user);
-    const [previewImage, setPreviewImage] = useState(user.avatar || "");
+export default function ProfileModal({ open, onClose, user = { name: "", email: "", phone: "", avatar: "" } }) {
+    useEffect(() => {
+        if (open) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [open]);
 
     if (!open) return null;
 
-    const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
-    };
-
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreviewImage(reader.result);
-                setForm({ ...form, avatar: reader.result });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onSave(form);
-        onClose();
-    };
-
     return (
         <div className="modal-backdrop" onClick={onClose}>
-            <form className="profile-modal" onClick={e => e.stopPropagation()} onSubmit={handleSubmit}>
+            <div className="profile-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3><i className="fa fa-user-edit"></i> Edit Profile</h3>
+                    <h3><i className="fa fa-user-circle"></i> View Profile</h3>
                     <button type="button" className="modal-close" onClick={onClose}>
                         <i className="fa fa-times"></i>
                     </button>
@@ -41,16 +27,12 @@ export default function ProfileModal({ open, onClose, user = { name: "", email: 
 
                 <div className="profile-avatar-section">
                     <div className="avatar-preview">
-                        {previewImage ? (
-                            <img src={previewImage} alt="Avatar" />
+                        {user.avatar ? (
+                            <img src={user.avatar} alt="Avatar" />
                         ) : (
                             <i className="fa fa-user"></i>
                         )}
                     </div>
-                    <label className="avatar-upload-btn">
-                        <i className="fa fa-camera"></i> Change Photo
-                        <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
-                    </label>
                 </div>
 
                 <div className="form-group">
@@ -60,10 +42,9 @@ export default function ProfileModal({ open, onClose, user = { name: "", email: 
                     <input 
                         id="name"
                         name="name" 
-                        value={form.name} 
-                        onChange={handleChange}
-                        placeholder="Enter your full name"
-                        required
+                        value={user.name} 
+                        readOnly
+                        disabled
                     />
                 </div>
 
@@ -75,10 +56,9 @@ export default function ProfileModal({ open, onClose, user = { name: "", email: 
                         id="email"
                         name="email" 
                         type="email"
-                        value={form.email} 
-                        onChange={handleChange}
-                        placeholder="Enter your email"
-                        required
+                        value={user.email} 
+                        readOnly
+                        disabled
                     />
                 </div>
 
@@ -90,21 +70,18 @@ export default function ProfileModal({ open, onClose, user = { name: "", email: 
                         id="phone"
                         name="phone" 
                         type="tel"
-                        value={form.phone} 
-                        onChange={handleChange}
-                        placeholder="Enter your phone number"
+                        value={user.phone || "Not provided"} 
+                        readOnly
+                        disabled
                     />
                 </div>
 
                 <div className="modal-actions">
-                    <button type="submit" className="modal-btn save-btn">
-                        <i className="fa fa-check"></i> Save Changes
-                    </button>
-                    <button type="button" className="modal-btn cancel-btn" onClick={onClose}>
-                        <i className="fa fa-times"></i> Cancel
+                    <button type="button" className="modal-btn cancel-btn" onClick={onClose} style={{flex: 1}}>
+                        <i className="fa fa-times"></i> Close
                     </button>
                 </div>
-            </form>
+            </div>
         </div>
     );
 }

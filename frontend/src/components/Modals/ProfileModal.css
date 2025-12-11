@@ -5,14 +5,16 @@
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
     background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(8px);
     display: flex !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     justify-content: center !important;
-    z-index: 99999 !important;
+    z-index: 10000 !important;
     animation: fadeIn 0.3s ease;
-    padding: 20px;
+    padding: 40px 20px;
     overflow-y: auto;
     pointer-events: auto !important;
 }
@@ -33,14 +35,16 @@
     box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
     width: 90%;
     max-width: 550px;
-    max-height: 85vh;
+    max-height: calc(100vh - 80px);
     overflow-y: auto;
     animation: modalSlide 0.4s ease;
     border: 1px solid var(--border-main);
     color: var(--text-dark);
     position: relative !important;
-    z-index: 100000 !important;
+    z-index: 10001 !important;
     pointer-events: auto !important;
+    margin: 0 auto;
+    flex-shrink: 0;
 }
 
 @keyframes modalSlide {
@@ -188,6 +192,15 @@
     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
 }
 
+.form-group input:disabled,
+.form-group input[readonly] {
+    background: var(--background-alt);
+    color: var(--text-dark);
+    cursor: not-allowed;
+    opacity: 0.8;
+    border-color: var(--border-main);
+}
+
 .modal-actions {
     display: flex;
     gap: 12px;
@@ -210,13 +223,18 @@
     transition: all 0.3s ease;
 }
 
+.modal-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .save-btn {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: #fff;
     box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
 }
 
-.save-btn:hover {
+.save-btn:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
 }

@@ -1,7 +1,18 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "./ProfileModal.css";
 
 export default function LogoutModal({ open, onClose, onConfirm }) {
+    useEffect(() => {
+        if (open) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [open]);
+
     if (!open) return null;
 
     return (
@@ -22,7 +33,7 @@ export default function LogoutModal({ open, onClose, onConfirm }) {
                         Are you sure you want to logout?
                     </p>
                     <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-                        You will be returned to the login page and your session will be ended.
+                        You will be returned to the login page.
                     </p>
                 </div>
 
