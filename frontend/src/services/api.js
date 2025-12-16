@@ -72,11 +72,11 @@ export const authAPI = {
 
 // ============ USER APIS ============
 export const userAPI = {
-    getAll: (params = {}) => api.get('/users/', { params }),
-    getById: (id) => api.get(`/users/${id}/`),
-    create: (data) => api.post('/users/', data),
-    update: (id, data) => api.put(`/users/${id}/`, data),
-    delete: (id) => api.delete(`/users/${id}/`),
+    getAll: (params = {}) => api.get('/auth/', { params }),
+    getById: (id) => api.get(`/auth/${id}/`),
+    create: (data) => api.post('/auth/', data),
+    update: (id, data) => api.put(`/auth/${id}/`, data),
+    delete: (id) => api.delete(`/auth/${id}/`),
     getMe: () => api.get('/auth/me/'),
     updateMe: (data) => api.put('/auth/update_me/', data),
     changePassword: (data) => api.post('/auth/change_password/', data),
@@ -185,17 +185,17 @@ export const attendanceChangeAPI = {
     getAll: (params = {}) => api.get('/attendance/attendance-changes/', { params }),
     getById: (id) => api.get(`/attendance/attendance-changes/${id}/`),
     create: (data) => api.post('/attendance/attendance-changes/', data),
-    approve: (id) => api.post(`/attendance/attendance-changes/${id}/approve/`),
-    reject: (id) => api.post(`/attendance/attendance-changes/${id}/reject/`),
-    getPending: () => api.get('/attendance/attendance-changes/pending/'),
+    approve: (id, data = {}) => api.post(`/attendance/attendance-changes/${id}/approve/`, data),
+    reject: (id, data = {}) => api.post(`/attendance/attendance-changes/${id}/reject/`, data),
+    getPending: (params = {}) => api.get('/attendance/attendance-changes/pending/', { params }),
 };
 
 // ============ ATTENDANCE REPORT APIS ============
 export const attendanceReportAPI = {
     getAll: (params = {}) => api.get('/attendance/attendance-reports/', { params }),
     getById: (id) => api.get(`/attendance/attendance-reports/${id}/`),
-    getLowAttendance: (threshold = 75) => 
-        api.get('/attendance/attendance-reports/low_attendance/', { params: { threshold } }),
+    getLowAttendance: (threshold = 75, params = {}) => 
+        api.get('/attendance/attendance-reports/low_attendance/', { params: { ...params, threshold } }),
     regenerate: (data) => api.post('/attendance/attendance-reports/regenerate/', data),
 };
 

@@ -205,13 +205,13 @@ export default function ManageSemesters() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Semester Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingSemester ? 'Edit Semester' : 'Add New Semester'}</h2>
-              <button className="modal-close" onClick={closeModal}>×</button>
+              <h2>{editingSemester ? '✏️ Edit Semester' : '➕ Add New Semester'}</h2>
+              <button className="close-btn" onClick={closeModal}>✕</button>
             </div>
             
             <div className="modal-body">
@@ -219,6 +219,7 @@ export default function ManageSemesters() {
                 <label>Semester Number *</label>
                 <select
                   name="number"
+                    className="form-control"
                   value={formData.number}
                   onChange={handleInputChange}
                   required
@@ -233,6 +234,7 @@ export default function ManageSemesters() {
                 <label>Department *</label>
                 <select
                   name="department"
+                    className="form-control"
                   value={formData.department}
                   onChange={handleInputChange}
                   required
@@ -249,6 +251,7 @@ export default function ManageSemesters() {
                 <input
                   type="text"
                   name="academic_year"
+                    className="form-control"
                   value={formData.academic_year}
                   onChange={handleInputChange}
                   placeholder="2024-2025"
@@ -261,6 +264,7 @@ export default function ManageSemesters() {
                 <input
                   type="date"
                   name="start_date"
+                    className="form-control"
                   value={formData.start_date}
                   onChange={handleInputChange}
                   required
@@ -272,6 +276,7 @@ export default function ManageSemesters() {
                 <input
                   type="date"
                   name="end_date"
+                    className="form-control"
                   value={formData.end_date}
                   onChange={handleInputChange}
                   required
@@ -282,6 +287,7 @@ export default function ManageSemesters() {
                 <label>Status *</label>
                 <select
                   name="status"
+                    className="form-control"
                   value={formData.status}
                   onChange={handleInputChange}
                   required
@@ -295,8 +301,8 @@ export default function ManageSemesters() {
 
             <div className="modal-footer">
               <button className="btn-secondary" onClick={closeModal}>Cancel</button>
-              <button className="btn-primary" onClick={handleAddSemester}>
-                {editingSemester ? 'Update' : 'Create'}
+                <button className="btn-primary" onClick={handleAddSemester} disabled={loading}>
+                  {loading ? '⏳ Saving...' : (editingSemester ? '✓ Update Semester' : '✓ Create Semester')}
               </button>
             </div>
           </div>

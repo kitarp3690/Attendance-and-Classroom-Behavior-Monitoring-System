@@ -16,6 +16,13 @@ class DepartmentSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'code', 'hod', 'hod_name', 'contact_email']
         read_only_fields = ['id']
     
+    def validate_hod(self, value):
+        if not value:
+            raise serializers.ValidationError('HOD is required for every department')
+        if value.role != 'hod':
+            raise serializers.ValidationError('Selected user must have HOD role')
+        return value
+    
     def get_hod_name(self, obj):
         return obj.hod.get_full_name() if obj.hod else None
 

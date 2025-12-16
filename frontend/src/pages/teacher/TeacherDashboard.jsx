@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
-import { sessionAPI, attendanceAPI, classAPI, classStudentAPI } from '../../services/api';
+import { sessionAPI, attendanceAPI, teacherAssignmentAPI } from '../../services/api';
 import './TeacherDashboard.css';
 
 export default function TeacherDashboard() {
@@ -12,56 +12,65 @@ export default function TeacherDashboard() {
   const [stats, setStats] = useState({
     todayClasses: [],
     activeSessions: [],
-    totalClasses: 0,
+    assignedSubjects: 0,
     totalStudents: 0,
-    averageAttendance: 0,
+    todayAttendanceRate: 0,
     recentAttendance: []
   });
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (user && user.id) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch sessions (classes)
-      const sessionsResponse = await sessionAPI.getAll({ page_size: 100 });
-      const allSessions = sessionsResponse.data.results || sessionsResponse.data || [];
-      const activeSessions = allSessions.filter(s => s.is_active);
-      
-      // Fetch attendance statistics
-      const statsResponse = await attendanceAPI.getStatistics();
-      const attendanceStats = statsResponse.data || {};
-      
-      // Fetch all classes assigned to teacher
-      const classesResponse = await classAPI.getAll({ page_size: 100 });
-      const allClasses = classesResponse.data.results || classesResponse.data || [];
-      
-      // Calculate total students across all classes
-      let totalStudents = 0;
-      for (const classItem of allClasses) {
-        const studentsRes = await classStudentAPI.getAll({ 
-          class_assigned: classItem.id, 
-          page_size: 1000 
-        });
-        const students = studentsRes.data.results || studentsRes.data || [];
-        totalStudents += students.length;
-      }
+      // Fetch teacher's assignments and sessions - scoped to current teacher
+      const [assignmentsRes, sessionsRes, attendanceRes] = await Promise.all([
+        teacherAssignmentAPI.getAll({ teacher: user.id, page_size: 100 }),
+        sessionAPI.getAll({ teacher: user.id, page_size: 100 }),
+        attendanceAPI.getAll({ teacher: user.id, page_size: 100 }),
+      ]);
 
-      // Fetch recent attendance records
-      const attendanceResponse = await attendanceAPI.getAll({ page_size: 10 });
-      const recentAttendance = attendanceResponse.data.results || attendanceResponse.data || [];
+      const assignments = assignmentsRes.data.results || assignmentsRes.data || [];
+      const allSessions = sessionsRes.data.results || sessionsRes.data || [];
+      const allAttendance = attendanceRes.data.results || attendanceRes.data || [];
+
+      // Filter active sessions
+      const activeSessions = allSessions.filter(s => s.status === 'active');
+      
+      // Get today's sessions
+      const today = new Date().toISOString().split('T')[0];
+      const todayClasses = allSessions.filter(
+        s => s.start_time?.split('T')[0] === today
+      );
+
+      // Calculate unique students from attendance records
+      const uniqueStudents = new Set();
+      allAttendance.forEach(record => {
+        if (record.student) uniqueStudents.add(record.student);
+      });
+
+      // Calculate today's attendance rate
+      const todayAttendance = allAttendance.filter(
+        a => a.date === today
+      );
+      const presentToday = todayAttendance.filter(a => a.status === 'present').length;
+      const todayAttendanceRate = todayAttendance.length > 0 
+        ? Math.round((presentToday / todayAttendance.length) * 100) 
+        : 0;
 
       setStats({
-        todayClasses: allSessions.slice(0, 5) || [],
+        todayClasses: todayClasses || [],
         activeSessions: activeSessions || [],
-        totalClasses: allSessions.length || 0,
-        totalStudents: totalStudents,
-        averageAttendance: attendanceStats.attendance_percentage || 87,
-        recentAttendance: recentAttendance
+        assignedSubjects: assignments.length || 0,
+        totalStudents: uniqueStudents.size || 0,
+        todayAttendanceRate: todayAttendanceRate || 0,
+        recentAttendance: allAttendance.slice(0, 10)
       });
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -107,8 +116,8 @@ export default function TeacherDashboard() {
         <div className="stat-card blue">
           <div className="stat-icon">📚</div>
           <div className="stat-content">
-            <h3>{stats.totalClasses}</h3>
-            <p>Total Classes</p>
+            <h3>{stats.assignedSubjects}</h3>
+            <p>Assigned Subjects</p>
           </div>
         </div>
 
@@ -131,8 +140,8 @@ export default function TeacherDashboard() {
         <div className="stat-card purple">
           <div className="stat-icon">📊</div>
           <div className="stat-content">
-            <h3>{stats.averageAttendance.toFixed(1)}%</h3>
-            <p>Avg Attendance</p>
+            <h3>{stats.todayAttendanceRate}%</h3>
+            <p>Today's Attendance</p>
           </div>
         </div>
       </div>

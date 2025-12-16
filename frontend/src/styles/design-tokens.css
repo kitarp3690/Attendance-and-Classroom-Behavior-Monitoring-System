@@ -193,7 +193,7 @@
   --focus-outline-color: var(--primary);
 }
 
-/* Dark Mode Support (if implemented) */
+/* Dark Mode Support - System Preference */
 @media (prefers-color-scheme: dark) {
   :root {
     --text-primary: #f3f4f6;
@@ -209,6 +209,40 @@
     --border-light: #1f2937;
     --border-dark: #4b5563;
   }
+}
+
+/* Dark Mode Support - Manual Theme Toggle via data-theme attribute */
+[data-theme="dark"] {
+  --text-primary: #f3f4f6;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --text-inverse: #111827;
+  
+  --background: #111827;
+  --background-alt: #1f2937;
+  --card-bg: #1f2937;
+  --card-bg-alt: #111827;
+  
+  --border-main: #374151;
+  --border-light: #1f2937;
+  --border-dark: #4b5563;
+}
+
+/* Light Mode Support - Manual Theme Toggle via data-theme attribute */
+[data-theme="light"] {
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --text-inverse: #ffffff;
+  
+  --background: #f9fafb;
+  --background-alt: #f3f4f6;
+  --card-bg: #ffffff;
+  --card-bg-alt: #f9fafb;
+  
+  --border-main: #e5e7eb;
+  --border-light: #f3f4f6;
+  --border-dark: #d1d5db;
 }
 
 /* Accessibility - Reduced Motion */

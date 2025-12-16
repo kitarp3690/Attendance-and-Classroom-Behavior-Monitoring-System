@@ -1,4 +1,4 @@
-# SYSTEM REQUIREMENT SPECIFICATION
+ # SYSTEM REQUIREMENT SPECIFICATION
 ## AI-Powered Attendance System (Camera-Based)
 
 **Document Version:** 1.0  

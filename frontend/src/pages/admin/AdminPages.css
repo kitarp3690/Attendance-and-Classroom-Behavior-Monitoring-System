@@ -130,7 +130,7 @@
 }
 
 .stat-card {
-  background: linear-gradient(135deg, var(--primary-lighter), var(--gray-50));
+  background: linear-gradient(135deg, var(--primary-lighter), var(--card-bg));
   border: 2px solid var(--border-main);
   padding: var(--space-6);
   border-radius: var(--radius-lg);
@@ -201,7 +201,7 @@
 }
 
 .table-container thead {
-  background: linear-gradient(180deg, var(--gray-100), var(--gray-50));
+  background: linear-gradient(180deg, var(--background-alt), var(--card-bg));
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
@@ -210,6 +210,7 @@
   text-align: left;
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
+  background-color: var(--background-alt);
   border-bottom: 2px solid var(--border-main);
   font-size: var(--font-size-sm);
   text-transform: uppercase;
@@ -233,16 +234,16 @@
 }
 
 .table-container tbody tr:hover {
-  background: var(--gray-50);
+  background: var(--hover-bg);
   box-shadow: inset 0 0 8px rgba(37, 99, 235, 0.05);
 }
 
 .table-container tbody tr:nth-child(even) {
-  background: var(--gray-50);
+  background: var(--background-alt);
 }
 
 .table-container tbody tr:nth-child(even):hover {
-  background: var(--gray-100);
+  background: var(--hover-bg);
 }
 
 /* ===== BUTTONS ===== */
@@ -291,13 +292,14 @@
 }
 
 .btn-secondary {
-  background: var(--gray-200);
+  background: var(--background-alt);
   color: var(--text-primary);
+  border: 1px solid var(--border-main);
   box-shadow: var(--shadow-sm);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--gray-300);
+  background: var(--hover-bg);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
@@ -370,7 +372,7 @@
   outline: none;
   border-color: var(--primary);
   box-shadow: var(--focus-outline);
-  background: var(--gray-50);
+  background: var(--background-alt);
 }
 
 .form-group textarea {
@@ -415,7 +417,7 @@
   align-items: center;
   padding: var(--space-6);
   border-bottom: 1px solid var(--border-main);
-  background: linear-gradient(180deg, var(--gray-50), transparent);
+  background: linear-gradient(180deg, var(--background-alt), transparent);
 }
 
 .modal-header h2 {
@@ -444,7 +446,7 @@
 
 .close-btn:hover {
   color: var(--text-primary);
-  background: var(--gray-100);
+  background: var(--hover-bg);
   transform: rotate(90deg);
 }
 
@@ -458,7 +460,7 @@
   gap: var(--space-4);
   padding: var(--space-6);
   border-top: 1px solid var(--border-main);
-  background: var(--gray-50);
+  background: var(--background-alt);
 }
 
 /* ===== ALERTS ===== */
@@ -568,7 +570,7 @@
   padding: var(--space-12);
   color: var(--text-secondary);
   font-size: var(--font-size-lg);
-  background: var(--gray-50);
+  background: var(--background-alt);
   border-radius: var(--radius-lg);
   border: 2px dashed var(--border-main);
 }
@@ -688,6 +690,6 @@ a:focus-visible {
   .page-section,
   .table-container {
     box-shadow: none;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border-main);
   }
 }

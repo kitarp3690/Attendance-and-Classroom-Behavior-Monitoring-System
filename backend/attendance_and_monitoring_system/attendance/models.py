@@ -9,16 +9,22 @@ class Department(models.Model):
     code = models.CharField(max_length=20, unique=True)
     hod = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.PROTECT,
+        null=False,
+        blank=False,
         related_name='headed_departments',
-        limit_choices_to={'role': 'teacher'}
+        limit_choices_to={'role': 'hod'}
     )
     contact_email = models.EmailField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
+    class Meta:
+        ordering = ['code']
+        constraints = [
+            models.UniqueConstraint(fields=['hod'], name='unique_hod_per_department')
+        ]
 
 class Semester(models.Model):
     """Represents semesters 1-8 for each department"""

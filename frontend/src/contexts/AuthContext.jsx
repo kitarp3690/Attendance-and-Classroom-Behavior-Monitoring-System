@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { authAPI, setAuthToken } from '../services/api';
 
 // Create Auth Context
 export const AuthContext = createContext();
@@ -9,11 +9,9 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('access_token'));
   const [loading, setLoading] = useState(true);
 
-  // Configure axios with token
+  // Keep api client auth header in sync
   useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    }
+    setAuthToken(token);
   }, [token]);
 
   // Load user on mount
@@ -29,7 +27,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/api/auth/me/');
+      const response = await authAPI.getCurrentUser();
       setUser(response.data);
       setLoading(false);
     } catch (error) {
@@ -44,18 +42,24 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/auth/login/', {
-        username,
-        password,
-      });
-      
-      const newToken = response.data.access;
-      setToken(newToken);
-      localStorage.setItem('token', newToken);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-      
-      // Fetch user data
-      await fetchUser();
+      const response = await authAPI.login({ username, password });
+
+      const access = response.data.access;
+      const refresh = response.data.refresh;
+
+      // Persist tokens consistently with api interceptor expectations
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      setToken(access);
+      setAuthToken(access);
+
+      // Fetch user data to populate context and store role
+      const userResponse = await authAPI.getCurrentUser();
+      const userData = userResponse.data;
+      setUser(userData);
+      if (userData.role) {
+        localStorage.setItem('user_role', userData.role);
+      }
       return true;
     } catch (error) {
       console.error('Login error:', error);
@@ -69,7 +73,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_role');
-    delete axios.defaults.headers.common['Authorization'];
+    setAuthToken(null);
   };
 
   return (

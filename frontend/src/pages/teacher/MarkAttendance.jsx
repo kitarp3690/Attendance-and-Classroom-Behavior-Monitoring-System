@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../contexts/AuthContext';
 import { sessionAPI, attendanceAPI, classStudentAPI } from '../../services/api';
 import './TeacherPages.css';
 
 export default function MarkAttendance() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const [session, setSession] = useState(null);
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
+  const [aiDetections, setAiDetections] = useState({}); // AI confidence scores
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
@@ -21,20 +24,37 @@ export default function MarkAttendance() {
     try {
       setLoading(true);
       const sessionRes = await sessionAPI.getById(sessionId);
-      setSession(sessionRes.data);
+      const sessionData = sessionRes.data;
+      
+      // Verify teacher owns this session
+      if (user && sessionData.teacher && sessionData.teacher !== user.id) {
+        setError('Access denied: This session belongs to another teacher');
+        setTimeout(() => navigate('/teacher/sessions'), 2000);
+        return;
+      }
+      
+      setSession(sessionData);
 
-      const classId = sessionRes.data.class_assigned;
+      const classId = sessionData.class_assigned;
       const studentsRes = await classStudentAPI.getByClass(classId);
       const studentList = studentsRes.data.results || studentsRes.data || [];
       setStudents(studentList);
 
-      // Load existing attendance
+      // Load existing attendance with AI detection info
       const attendanceRes = await attendanceAPI.getBySession(sessionId);
       const existingAttendance = {};
+      const aiDetectionMap = {};
       (attendanceRes.data.results || attendanceRes.data || []).forEach(record => {
         existingAttendance[record.student] = record.status;
+        if (record.confidence_score) {
+          aiDetectionMap[record.student] = {
+            confidence: record.confidence_score,
+            markedBy: record.marked_by || 'AI'
+          };
+        }
       });
       setAttendance(existingAttendance);
+      setAiDetections(aiDetectionMap);
     } catch (err) {
       setError('Error loading data: ' + err.message);
       console.error(err);

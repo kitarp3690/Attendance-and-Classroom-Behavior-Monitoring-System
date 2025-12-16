@@ -27,16 +27,28 @@ export default function HODDashboard() {
       setLoading(true);
       setError(null);
 
-      // Fetch pending approvals
-      const approvalsResponse = await attendanceChangeAPI.getPending();
+      if (!user?.department) {
+        setError('Department information not found');
+        return;
+      }
+
+      // Fetch pending approvals (filtered by HOD's department)
+      const approvalsResponse = await attendanceChangeAPI.getPending({
+        department: user.department
+      });
       const pendingApprovals = approvalsResponse.data.results || approvalsResponse.data || [];
 
-      // Fetch low attendance students
-      const lowAttendanceResponse = await attendanceReportAPI.getLowAttendance(75);
+      // Fetch low attendance students (department-specific)
+      const lowAttendanceResponse = await attendanceReportAPI.getLowAttendance(75, {
+        department: user.department
+      });
       const lowAttendanceStudents = lowAttendanceResponse.data.results || lowAttendanceResponse.data || [];
 
-      // Fetch all classes to count students
-      const classesResponse = await classAPI.getAll({ page_size: 100 });
+      // Fetch classes in HOD's department
+      const classesResponse = await classAPI.getAll({ 
+        department: user.department,
+        page_size: 100 
+      });
       const classes = classesResponse.data.results || classesResponse.data || [];
       
       let totalStudents = 0;
@@ -44,12 +56,19 @@ export default function HODDashboard() {
         totalStudents += classItem.strength || 0;
       }
 
-      // Fetch all teachers
-      const teachersResponse = await userAPI.getAll({ role: 'teacher', page_size: 1000 });
+      // Fetch teachers in HOD's department
+      const teachersResponse = await userAPI.getAll({ 
+        role: 'teacher', 
+        department: user.department,
+        page_size: 1000 
+      });
       const teachers = teachersResponse.data.results || teachersResponse.data || [];
 
       // Calculate department attendance
-      const reportsResponse = await attendanceReportAPI.getAll({ page_size: 1000 });
+      const reportsResponse = await attendanceReportAPI.getAll({ 
+        department: user.department,
+        page_size: 1000 
+      });
       const reports = reportsResponse.data.results || reportsResponse.data || [];
       const avgAttendance = reports.length > 0 
         ? (reports.reduce((sum, r) => sum + (r.percentage || 0), 0) / reports.length).toFixed(1)

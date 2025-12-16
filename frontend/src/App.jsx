@@ -25,6 +25,9 @@ import ManageClasses from "./pages/admin/ManageClasses";
 import ManageSubjects from "./pages/admin/ManageSubjects";
 import ManageSemesters from "./pages/admin/ManageSemesters";
 import AdminViewReports from "./pages/admin/ViewReports";
+import AssignHOD from "./pages/admin/AssignHOD";
+import AssignTeachers from "./pages/admin/AssignTeachers";
+import ViewSessions from "./pages/admin/ViewSessions";
 
 // HOD Sub-pages
 import ApproveChanges from "./pages/hod/ApproveChanges";
@@ -144,9 +147,13 @@ function AdminRoutes() {
       <Route index element={<AdminDashboard />} />
       <Route path="dashboard" element={<AdminDashboard />} />
       <Route path="users" element={<ManageUsers />} />
+      <Route path="departments" element={<ManageClasses />} />
       <Route path="classes" element={<ManageClasses />} />
       <Route path="subjects" element={<ManageSubjects />} />
       <Route path="semesters" element={<ManageSemesters />} />
+      <Route path="sessions" element={<ViewSessions />} />
+      <Route path="assign-hod" element={<AssignHOD />} />
+      <Route path="assign-teachers" element={<AssignTeachers />} />
       <Route path="reports" element={<AdminViewReports />} />
     </Routes>
   );

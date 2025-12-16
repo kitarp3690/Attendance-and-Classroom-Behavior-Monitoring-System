@@ -1,33 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { userAPI } from '../../services/api';
+import { userAPI, departmentAPI } from '../../services/api';
 import './AdminPages.css';
 
 export default function ManageUsers() {
   const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     first_name: '',
     last_name: '',
     role: 'student',
+    department: '',
     password: ''
   });
+  const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
-    fetchUsers();
+    fetchData();
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await userAPI.getAll({ page_size: 100 });
-      setUsers(res.data.results || res.data || []);
+      const [userRes, deptRes] = await Promise.all([
+        userAPI.getAll({ page_size: 500 }),
+        departmentAPI.getAll({ page_size: 100 })
+      ]);
+      setUsers(userRes.data.results || userRes.data || []);
+      setDepartments(deptRes.data.results || deptRes.data || []);
+      setError(null);
     } catch (err) {
-      setError('Error loading users: ' + err.message);
+      setError('Error loading data: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -36,22 +46,65 @@ export default function ManageUsers() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear validation error for this field
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({ ...prev, [name]: null }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.username || formData.username.trim().length < 3) {
+      errors.username = 'Username must be at least 3 characters';
+    }
+    
+    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Valid email is required';
+    }
+    
+    if (!formData.first_name || formData.first_name.trim().length === 0) {
+      errors.first_name = 'First name is required';
+    }
+    
+    if (!formData.last_name || formData.last_name.trim().length === 0) {
+      errors.last_name = 'Last name is required';
+    }
+    
+    if (!editingUser && (!formData.password || formData.password.length < 6)) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    
+    if (formData.role === 'hod' && !formData.department) {
+      errors.department = 'Department is required for HOD role';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleAddUser = async () => {
-    if (!formData.username || !formData.email) {
-      alert('Please fill all required fields');
+    if (!validateForm()) {
       return;
     }
 
     try {
-      if (editingUser) {
-        await userAPI.update(editingUser.id, formData);
-        alert('User updated successfully!');
-      } else {
-        await userAPI.create(formData);
-        alert('User created successfully!');
+      setLoading(true);
+      
+      // Prepare data - remove password if editing and empty
+      const submitData = { ...formData };
+      if (editingUser && !submitData.password) {
+        delete submitData.password;
       }
+      
+      if (editingUser) {
+        await userAPI.update(editingUser.id, submitData);
+        alert('✓ User updated successfully!');
+      } else {
+        await userAPI.create(submitData);
+        alert('✓ User created successfully!');
+      }
+      
       setShowModal(false);
       setFormData({
         username: '',
@@ -59,12 +112,20 @@ export default function ManageUsers() {
         first_name: '',
         last_name: '',
         role: 'student',
+        department: '',
         password: ''
       });
       setEditingUser(null);
-      fetchUsers();
+      setValidationErrors({});
+      await fetchData();
     } catch (err) {
-      alert('Error: ' + (err.response?.data?.detail || err.message));
+      const errorMsg = err.response?.data?.detail 
+        || err.response?.data?.username?.[0]
+        || err.response?.data?.email?.[0]
+        || err.message;
+      alert('❌ Error: ' + errorMsg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,42 +137,68 @@ export default function ManageUsers() {
       first_name: user.first_name,
       last_name: user.last_name,
       role: user.role,
+      department: user.department || '',
       password: ''
     });
+    setValidationErrors({});
     setShowModal(true);
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Delete this user?')) return;
+  const handleDeleteUser = async (userId, username) => {
+    if (!window.confirm(`⚠️ Delete user "${username}"?\n\nThis action cannot be undone.`)) return;
 
     try {
+      setLoading(true);
       await userAPI.delete(userId);
-      fetchUsers();
-      alert('User deleted successfully!');
+      alert('✓ User deleted successfully!');
+      await fetchData();
     } catch (err) {
-      alert('Error: ' + err.message);
+      const errorMsg = err.response?.data?.detail || err.message;
+      alert('❌ Error deleting user: ' + errorMsg);
+    } finally {
+      setLoading(false);
     }
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditingUser(null);
+    setValidationErrors({});
     setFormData({
       username: '',
       email: '',
       first_name: '',
       last_name: '',
       role: 'student',
+      department: '',
       password: ''
     });
   };
 
-  if (loading) return <div className="loading-container"><p>Loading...</p></div>;
+  const getFilteredUsers = () => {
+    return users.filter(user => {
+      const matchesSearch = !searchQuery || 
+        user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesRole = filterRole === 'all' || user.role === filterRole;
+      
+      return matchesSearch && matchesRole;
+    });
+  };
+
+  if (loading) return <div className="loading-container"><p>⏳ Loading...</p></div>;
+
+  const filteredUsers = getFilteredUsers();
 
   return (
     <div className="admin-page">
       <div className="page-header">
-        <h1>👥 Manage Users</h1>
+        <div>
+          <h1>👥 Manage Users</h1>
+          <p className="subtitle">Create, edit, and manage all system users</p>
+        </div>
         <button className="btn-primary" onClick={() => setShowModal(true)}>
           + Add User
         </button>
@@ -119,9 +206,44 @@ export default function ManageUsers() {
 
       {error && <div className="alert alert-danger">{error}</div>}
 
+      {/* Search and Filter */}
       <div className="page-section">
-        {users.length === 0 ? (
-          <p className="empty-state">No users found</p>
+        <div className="form-grid">
+          <div className="form-group">
+            <label>🔍 Search Users</label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by username, email, or name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label>Filter by Role</label>
+            <select 
+              className="form-control"
+              value={filterRole} 
+              onChange={(e) => setFilterRole(e.target.value)}
+            >
+              <option value="all">All Roles</option>
+              <option value="admin">Admin</option>
+              <option value="hod">HOD</option>
+              <option value="teacher">Teacher</option>
+              <option value="student">Student</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="page-section">
+        <h2>Users ({filteredUsers.length})</h2>
+        {filteredUsers.length === 0 ? (
+          <p className="empty-state">
+            {searchQuery || filterRole !== 'all' 
+              ? 'No users match your search criteria' 
+              : 'No users found. Create your first user!'}
+          </p>
         ) : (
           <div className="table-container">
             <table>
@@ -131,34 +253,48 @@ export default function ManageUsers() {
                   <th>Email</th>
                   <th>Name</th>
                   <th>Role</th>
+                  <th>Department</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map(user => (
-                  <tr key={user.id}>
-                    <td><strong>{user.username}</strong></td>
-                    <td>{user.email}</td>
-                    <td>{user.first_name} {user.last_name}</td>
-                    <td><span className={`badge badge-${user.role}`}>{user.role.toUpperCase()}</span></td>
-                    <td>{user.is_active ? '✓ Active' : '✕ Inactive'}</td>
-                    <td>
-                      <button 
-                        className="btn-sm btn-info"
-                        onClick={() => handleEditUser(user)}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        className="btn-sm btn-danger"
-                        onClick={() => handleDeleteUser(user.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredUsers.map(user => {
+                  const dept = departments.find(d => d.id === user.department);
+                  return (
+                    <tr key={user.id}>
+                      <td><strong>{user.username}</strong></td>
+                      <td>{user.email}</td>
+                      <td>{user.first_name} {user.last_name}</td>
+                      <td>
+                        <span className={`badge badge-${user.role}`}>
+                          {user.role.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>{dept ? dept.name : '-'}</td>
+                      <td>
+                        <span className={`status-badge ${user.is_active ? 'success' : 'danger'}`}>
+                          {user.is_active ? '✓ Active' : '✕ Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <button 
+                          className="btn-sm btn-info"
+                          onClick={() => handleEditUser(user)}
+                          style={{ marginRight: '8px' }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button 
+                          className="btn-sm btn-danger"
+                          onClick={() => handleDeleteUser(user.id, user.username)}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -170,7 +306,7 @@ export default function ManageUsers() {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingUser ? 'Edit User' : 'Add New User'}</h2>
+              <h2>{editingUser ? '✏️ Edit User' : '➕ Add New User'}</h2>
               <button className="close-btn" onClick={closeModal}>✕</button>
             </div>
             <div className="modal-body">
@@ -179,68 +315,127 @@ export default function ManageUsers() {
                 <input
                   type="text"
                   name="username"
+                  className="form-control"
                   value={formData.username}
                   onChange={handleInputChange}
-                  placeholder="Enter username"
+                  placeholder="Enter username (min 3 characters)"
                   disabled={editingUser ? true : false}
                 />
+                {validationErrors.username && (
+                  <small className="text-danger">⚠️ {validationErrors.username}</small>
+                )}
               </div>
               <div className="form-group">
                 <label>Email *</label>
                 <input
                   type="email"
                   name="email"
+                  className="form-control"
                   value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="Enter email"
+                  placeholder="user@example.com"
                 />
+                {validationErrors.email && (
+                  <small className="text-danger">⚠️ {validationErrors.email}</small>
+                )}
               </div>
               <div className="form-group">
-                <label>First Name</label>
+                <label>First Name *</label>
                 <input
                   type="text"
                   name="first_name"
+                  className="form-control"
                   value={formData.first_name}
                   onChange={handleInputChange}
                   placeholder="Enter first name"
                 />
+                {validationErrors.first_name && (
+                  <small className="text-danger">⚠️ {validationErrors.first_name}</small>
+                )}
               </div>
               <div className="form-group">
-                <label>Last Name</label>
+                <label>Last Name *</label>
                 <input
                   type="text"
                   name="last_name"
+                  className="form-control"
                   value={formData.last_name}
                   onChange={handleInputChange}
                   placeholder="Enter last name"
                 />
+                {validationErrors.last_name && (
+                  <small className="text-danger">⚠️ {validationErrors.last_name}</small>
+                )}
               </div>
               <div className="form-group">
-                <label>Role</label>
-                <select name="role" value={formData.role} onChange={handleInputChange}>
-                  <option value="student">Student</option>
-                  <option value="teacher">Teacher</option>
-                  <option value="admin">Admin</option>
-                  <option value="hod">HOD</option>
+                <label>Role *</label>
+                <select 
+                  name="role" 
+                  className="form-control"
+                  value={formData.role} 
+                  onChange={handleInputChange}
+                >
+                  <option value="student">👨‍🎓 Student</option>
+                  <option value="teacher">👨‍🏫 Teacher</option>
+                  <option value="hod">👔 HOD (Head of Department)</option>
+                  <option value="admin">⚙️ Admin</option>
                 </select>
               </div>
-              {!editingUser && (
+              {formData.role === 'hod' && (
+                <div className="form-group">
+                  <label>Department *</label>
+                  <select
+                    name="department"
+                    className="form-control"
+                    value={formData.department}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                  {validationErrors.department && (
+                    <small className="text-danger">⚠️ {validationErrors.department}</small>
+                  )}
+                </div>
+              )}
+              {!editingUser ? (
                 <div className="form-group">
                   <label>Password *</label>
                   <input
                     type="password"
                     name="password"
+                    className="form-control"
                     value={formData.password}
                     onChange={handleInputChange}
-                    placeholder="Enter password"
+                    placeholder="Enter password (min 6 characters)"
                   />
+                  {validationErrors.password && (
+                    <small className="text-danger">⚠️ {validationErrors.password}</small>
+                  )}
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label>Password (leave blank to keep current)</label>
+                  <input
+                    type="password"
+                    name="password"
+                    className="form-control"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="Enter new password (optional)"
+                  />
+                  {validationErrors.password && (
+                    <small className="text-danger">⚠️ {validationErrors.password}</small>
+                  )}
                 </div>
               )}
             </div>
             <div className="modal-footer">
               <button className="btn-secondary" onClick={closeModal}>Cancel</button>
-              <button className="btn-primary" onClick={handleAddUser}>
-                {editingUser ? 'Update User' : 'Create User'}
+              <button className="btn-primary" onClick={handleAddUser} disabled={loading}>
+                {loading ? '⏳ Saving...' : (editingUser ? '✓ Update User' : '✓ Create User')}
               </button>
             </div>
           </div>
