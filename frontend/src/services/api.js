@@ -78,8 +78,8 @@ export const userAPI = {
     update: (id, data) => api.put(`/auth/${id}/`, data),
     delete: (id) => api.delete(`/auth/${id}/`),
     getMe: () => api.get('/auth/me/'),
-    updateMe: (data) => api.put('/auth/update_me/', data),
-    changePassword: (data) => api.post('/auth/change_password/', data),
+    updateMe: (data) => api.put('/auth/me/', data),
+    changePassword: (data) => api.post('/auth/change-password/', data),
 };
 
 // ============ DEPARTMENT APIS ============
