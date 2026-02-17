@@ -6,7 +6,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import CustomUser
-from .serializers import UserSerializer, UserDetailSerializer
+from .serializers import UserSerializer, UserDetailSerializer, UserCreateSerializer
 
 def home(request):
     return HttpResponse("User app is working!")
@@ -54,7 +54,11 @@ class UserViewSet(viewsets.ModelViewSet):
             return CustomUser.objects.filter(id=user.id)
 
     def get_serializer_class(self):
-        if self.action in ['retrieve', 'me']:
+        if self.action == 'create':
+            return UserCreateSerializer
+        elif self.action in ['retrieve', 'me']:
+            return UserDetailSerializer
+        elif self.action in ['update', 'partial_update']:
             return UserDetailSerializer
         return UserSerializer
 

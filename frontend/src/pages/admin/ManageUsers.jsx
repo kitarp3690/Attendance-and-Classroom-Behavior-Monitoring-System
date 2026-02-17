@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { userAPI, departmentAPI } from '../../services/api';
+import { userAPI, departmentAPI, semesterAPI } from '../../services/api';
 import './AdminPages.css';
 
 export default function ManageUsers() {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [semesters, setSemesters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -16,9 +17,12 @@ export default function ManageUsers() {
     email: '',
     first_name: '',
     last_name: '',
-    role: 'student',
+    role: '',
     department: '',
-    password: ''
+    semester: '',
+    phone: '',
+    password: '',
+    password_confirm: ''
   });
   const [validationErrors, setValidationErrors] = useState({});
 
@@ -46,14 +50,46 @@ export default function ManageUsers() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
     // Clear validation error for this field
     if (validationErrors[name]) {
       setValidationErrors(prev => ({ ...prev, [name]: null }));
+    }
+    
+    // Handle cascading: when department changes, load semesters
+    if (name === 'department' && value) {
+      fetchSemestersByDepartment(value);
+    }
+    
+    // Reset dependent fields when role changes
+    if (name === 'role') {
+      setFormData(prev => ({ 
+        ...prev, 
+        department: '', 
+        semester: '',
+        phone: prev.phone 
+      }));
+      setSemesters([]);
+    }
+  };
+  
+  const fetchSemestersByDepartment = async (departmentId) => {
+    try {
+      const response = await semesterAPI.getByDepartment(departmentId);
+      setSemesters(response.data.results || response.data || []);
+    } catch (err) {
+      console.error('Error fetching semesters:', err);
+      setSemesters([]);
     }
   };
 
   const validateForm = () => {
     const errors = {};
+    
+    // Role is required
+    if (!formData.role) {
+      errors.role = 'Please select a user role first';
+    }
     
     if (!formData.username || formData.username.trim().length < 3) {
       errors.username = 'Username must be at least 3 characters';
@@ -71,12 +107,34 @@ export default function ManageUsers() {
       errors.last_name = 'Last name is required';
     }
     
-    if (!editingUser && (!formData.password || formData.password.length < 6)) {
-      errors.password = 'Password must be at least 6 characters';
+    // Role-specific validation
+    if (formData.role === 'hod' && !formData.department) {
+      errors.department = 'Department is required for HOD';
     }
     
-    if (formData.role === 'hod' && !formData.department) {
-      errors.department = 'Department is required for HOD role';
+    if (formData.role === 'teacher' && !formData.department) {
+      errors.department = 'Department is required for Teacher';
+    }
+    
+    if (formData.role === 'student') {
+      if (!formData.department) {
+        errors.department = 'Department is required for Student';
+      }
+      if (!formData.semester) {
+        errors.semester = 'Semester is required for Student';
+      }
+    }
+    
+    if (!editingUser) {
+      if (!formData.password || formData.password.length < 8) {
+        errors.password = 'Password must be at least 8 characters';
+      }
+      if (!formData.password_confirm) {
+        errors.password_confirm = 'Please confirm the password';
+      }
+      if (formData.password && formData.password_confirm && formData.password !== formData.password_confirm) {
+        errors.password_confirm = 'Passwords do not match';
+      }
     }
     
     setValidationErrors(errors);
@@ -111,12 +169,16 @@ export default function ManageUsers() {
         email: '',
         first_name: '',
         last_name: '',
-        role: 'student',
+        role: '',
         department: '',
-        password: ''
+        semester: '',
+        phone: '',
+        password: '',
+        password_confirm: ''
       });
       setEditingUser(null);
       setValidationErrors({});
+      setSemesters([]);
       await fetchData();
     } catch (err) {
       const errorMsg = err.response?.data?.detail 
@@ -138,9 +200,18 @@ export default function ManageUsers() {
       last_name: user.last_name,
       role: user.role,
       department: user.department || '',
-      password: ''
+      semester: user.semester || '',
+      phone: user.phone || '',
+      password: '',
+      password_confirm: ''
     });
     setValidationErrors({});
+    
+    // Load semesters if user has department
+    if (user.department) {
+      fetchSemestersByDepartment(user.department);
+    }
+    
     setShowModal(true);
   };
 
@@ -164,14 +235,18 @@ export default function ManageUsers() {
     setShowModal(false);
     setEditingUser(null);
     setValidationErrors({});
+    setSemesters([]);
     setFormData({
       username: '',
       email: '',
       first_name: '',
       last_name: '',
-      role: 'student',
+      role: '',
       department: '',
-      password: ''
+      semester: '',
+      phone: '',
+      password: '',
+      password_confirm: ''
     });
   };
 
@@ -254,6 +329,7 @@ export default function ManageUsers() {
                   <th>Name</th>
                   <th>Role</th>
                   <th>Department</th>
+                  <th>Semester</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -272,6 +348,7 @@ export default function ManageUsers() {
                         </span>
                       </td>
                       <td>{dept ? dept.name : '-'}</td>
+                      <td>{user.semester_display || '-'}</td>
                       <td>
                         <span className={`status-badge ${user.is_active ? 'success' : 'danger'}`}>
                           {user.is_active ? '✓ Active' : '✕ Inactive'}
@@ -310,126 +387,265 @@ export default function ManageUsers() {
               <button className="close-btn" onClick={closeModal}>✕</button>
             </div>
             <div className="modal-body">
-              <div className="form-group">
-                <label>Username *</label>
-                <input
-                  type="text"
-                  name="username"
-                  className="form-control"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  placeholder="Enter username (min 3 characters)"
-                  disabled={editingUser ? true : false}
-                />
-                {validationErrors.username && (
-                  <small className="text-danger">⚠️ {validationErrors.username}</small>
-                )}
-              </div>
-              <div className="form-group">
-                <label>Email *</label>
-                <input
-                  type="email"
-                  name="email"
-                  className="form-control"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="user@example.com"
-                />
-                {validationErrors.email && (
-                  <small className="text-danger">⚠️ {validationErrors.email}</small>
-                )}
-              </div>
-              <div className="form-group">
-                <label>First Name *</label>
-                <input
-                  type="text"
-                  name="first_name"
-                  className="form-control"
-                  value={formData.first_name}
-                  onChange={handleInputChange}
-                  placeholder="Enter first name"
-                />
-                {validationErrors.first_name && (
-                  <small className="text-danger">⚠️ {validationErrors.first_name}</small>
-                )}
-              </div>
-              <div className="form-group">
-                <label>Last Name *</label>
-                <input
-                  type="text"
-                  name="last_name"
-                  className="form-control"
-                  value={formData.last_name}
-                  onChange={handleInputChange}
-                  placeholder="Enter last name"
-                />
-                {validationErrors.last_name && (
-                  <small className="text-danger">⚠️ {validationErrors.last_name}</small>
-                )}
-              </div>
-              <div className="form-group">
-                <label>Role *</label>
+              {/* Step 1: Select Role First */}
+              <div className="form-group" style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
+                <label style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px' }}>
+                  Step 1: Select User Role *
+                </label>
                 <select 
                   name="role" 
                   className="form-control"
                   value={formData.role} 
                   onChange={handleInputChange}
+                  disabled={editingUser ? true : false}
+                  style={{ fontSize: '15px', padding: '10px' }}
                 >
+                  <option value="">-- Select User Role --</option>
                   <option value="student">👨‍🎓 Student</option>
                   <option value="teacher">👨‍🏫 Teacher</option>
                   <option value="hod">👔 HOD (Head of Department)</option>
                   <option value="admin">⚙️ Admin</option>
                 </select>
+                {validationErrors.role && (
+                  <small className="text-danger">⚠️ {validationErrors.role}</small>
+                )}
               </div>
-              {formData.role === 'hod' && (
-                <div className="form-group">
-                  <label>Department *</label>
-                  <select
-                    name="department"
-                    className="form-control"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
-                  </select>
-                  {validationErrors.department && (
-                    <small className="text-danger">⚠️ {validationErrors.department}</small>
+
+              {/* Show rest of form only after role is selected */}
+              {formData.role && (
+                <>
+                  <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#e7f3ff', borderLeft: '4px solid #0066cc', borderRadius: '4px' }}>
+                    <strong>ℹ️ Adding: {formData.role === 'student' ? 'Student' : formData.role === 'teacher' ? 'Teacher' : formData.role === 'hod' ? 'HOD' : 'Admin'}</strong>
+                  </div>
+
+                  {/* Basic Information */}
+                  <h3 style={{ marginTop: '20px', marginBottom: '12px', fontSize: '16px', color: '#333' }}>
+                    Step 2: Basic Information
+                  </h3>
+                  
+                  <div className="form-group">
+                    <label>Username *</label>
+                    <input
+                      type="text"
+                      name="username"
+                      className="form-control"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      placeholder="Enter username (min 3 characters)"
+                      disabled={editingUser ? true : false}
+                    />
+                    {validationErrors.username && (
+                      <small className="text-danger">⚠️ {validationErrors.username}</small>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Email *</label>
+                    <input
+                      type="email"
+                      name="email"
+                      className="form-control"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="user@example.com"
+                    />
+                    {validationErrors.email && (
+                      <small className="text-danger">⚠️ {validationErrors.email}</small>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-group">
+                      <label>First Name *</label>
+                      <input
+                        type="text"
+                        name="first_name"
+                        className="form-control"
+                        value={formData.first_name}
+                        onChange={handleInputChange}
+                        placeholder="Enter first name"
+                      />
+                      {validationErrors.first_name && (
+                        <small className="text-danger">⚠️ {validationErrors.first_name}</small>
+                      )}
+                    </div>
+
+                    <div className="form-group">
+                      <label>Last Name *</label>
+                      <input
+                        type="text"
+                        name="last_name"
+                        className="form-control"
+                        value={formData.last_name}
+                        onChange={handleInputChange}
+                        placeholder="Enter last name"
+                      />
+                      {validationErrors.last_name && (
+                        <small className="text-danger">⚠️ {validationErrors.last_name}</small>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Phone Number (Optional)</label>
+                    <input
+                      type="text"
+                      name="phone"
+                      className="form-control"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="9841234567"
+                    />
+                  </div>
+
+                  {/* Role-Specific Fields */}
+                  <h3 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '16px', color: '#333' }}>
+                    Step 3: {formData.role === 'student' ? 'Student Details' : formData.role === 'teacher' ? 'Teacher Assignment' : formData.role === 'hod' ? 'Department Assignment' : 'Admin Details'}
+                  </h3>
+
+                  {/* For HOD - Department Required */}
+                  {formData.role === 'hod' && (
+                    <div className="form-group">
+                      <label>Assign to Department *</label>
+                      <select
+                        name="department"
+                        className="form-control"
+                        value={formData.department}
+                        onChange={handleInputChange}
+                      >
+                        <option value="">-- Select Department --</option>
+                        {departments.map(dept => (
+                          <option key={dept.id} value={dept.id}>{dept.name}</option>
+                        ))}
+                      </select>
+                      <small className="form-text">HOD will manage this department only</small>
+                      {validationErrors.department && (
+                        <small className="text-danger" style={{ display: 'block' }}>⚠️ {validationErrors.department}</small>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
-              {!editingUser ? (
-                <div className="form-group">
-                  <label>Password *</label>
-                  <input
-                    type="password"
-                    name="password"
-                    className="form-control"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="Enter password (min 6 characters)"
-                  />
-                  {validationErrors.password && (
-                    <small className="text-danger">⚠️ {validationErrors.password}</small>
+
+                  {/* For Teacher - Department Required */}
+                  {formData.role === 'teacher' && (
+                    <div className="form-group">
+                      <label>Primary Department *</label>
+                      <select
+                        name="department"
+                        className="form-control"
+                        value={formData.department}
+                        onChange={handleInputChange}
+                      >
+                        <option value="">-- Select Department --</option>
+                        {departments.map(dept => (
+                          <option key={dept.id} value={dept.id}>{dept.name}</option>
+                        ))}
+                      </select>
+                      <small className="form-text">Teacher can be assigned subjects across departments later</small>
+                      {validationErrors.department && (
+                        <small className="text-danger" style={{ display: 'block' }}>⚠️ {validationErrors.department}</small>
+                      )}
+                    </div>
                   )}
-                </div>
-              ) : (
-                <div className="form-group">
-                  <label>Password (leave blank to keep current)</label>
-                  <input
-                    type="password"
-                    name="password"
-                    className="form-control"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="Enter new password (optional)"
-                  />
-                  {validationErrors.password && (
-                    <small className="text-danger">⚠️ {validationErrors.password}</small>
+
+                  {/* For Student - Department + Semester Required */}
+                  {formData.role === 'student' && (
+                    <>
+                      <div className="form-group">
+                        <label>Department *</label>
+                        <select
+                          name="department"
+                          className="form-control"
+                          value={formData.department}
+                          onChange={handleInputChange}
+                        >
+                          <option value="">-- Select Department --</option>
+                          {departments.map(dept => (
+                            <option key={dept.id} value={dept.id}>{dept.name}</option>
+                          ))}
+                        </select>
+                        {validationErrors.department && (
+                          <small className="text-danger">⚠️ {validationErrors.department}</small>
+                        )}
+                      </div>
+
+                      <div className="form-group">
+                        <label>Semester *</label>
+                        <select
+                          name="semester"
+                          className="form-control"
+                          value={formData.semester}
+                          onChange={handleInputChange}
+                          disabled={!formData.department}
+                        >
+                          <option value="">-- Select Semester --</option>
+                          {semesters.map(sem => (
+                            <option key={sem.id} value={sem.id}>Semester {sem.number}</option>
+                          ))}
+                        </select>
+                        <small className="form-text">
+                          {!formData.department ? 'Select department first' : 'Student will be enrolled in this semester'}
+                        </small>
+                        {validationErrors.semester && (
+                          <small className="text-danger" style={{ display: 'block' }}>⚠️ {validationErrors.semester}</small>
+                        )}
+                      </div>
+                    </>
                   )}
-                </div>
+
+                  {/* Password Field */}
+                  <h3 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '16px', color: '#333' }}>
+                    Step 4: Set Password
+                  </h3>
+
+                  {!editingUser ? (
+                    <>
+                      <div className="form-group">
+                        <label>Password *</label>
+                        <input
+                          type="password"
+                          name="password"
+                          className="form-control"
+                          value={formData.password}
+                          onChange={handleInputChange}
+                          placeholder="Enter password (min 8 characters)"
+                        />
+                        {validationErrors.password && (
+                          <small className="text-danger">⚠️ {validationErrors.password}</small>
+                        )}
+                      </div>
+
+                      <div className="form-group">
+                        <label>Confirm Password *</label>
+                        <input
+                          type="password"
+                          name="password_confirm"
+                          className="form-control"
+                          value={formData.password_confirm}
+                          onChange={handleInputChange}
+                          placeholder="Confirm password"
+                        />
+                        {validationErrors.password_confirm && (
+                          <small className="text-danger">⚠️ {validationErrors.password_confirm}</small>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="form-group">
+                      <label>Password (leave blank to keep current)</label>
+                      <input
+                        type="password"
+                        name="password"
+                        className="form-control"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        placeholder="Enter new password (optional, min 8 characters)"
+                      />
+                      {validationErrors.password && (
+                        <small className="text-danger">⚠️ {validationErrors.password}</small>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="modal-footer">

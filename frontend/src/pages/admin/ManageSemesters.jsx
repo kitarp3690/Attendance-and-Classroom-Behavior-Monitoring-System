@@ -9,7 +9,10 @@ export default function ManageSemesters() {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingSemester, setEditingSemester] = useState(null);
-  const [filterDepartment, setFilterDepartment] = useState('all');
+  
+  // Navigation state
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
+  
   const [formData, setFormData] = useState({
     number: 1,
     department: '',
@@ -21,24 +24,17 @@ export default function ManageSemesters() {
 
   useEffect(() => {
     fetchData();
-  }, [filterDepartment]);
+  }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const [semesterRes, departmentRes] = await Promise.all([
-        semesterAPI.getAll({ page_size: 100 }),
+        semesterAPI.getAll({ page_size: 500 }),
         departmentAPI.getAll({ page_size: 100 })
       ]);
       
-      let semesterData = semesterRes.data.results || semesterRes.data || [];
-      
-      // Filter by department if selected
-      if (filterDepartment !== 'all') {
-        semesterData = semesterData.filter(s => s.department === parseInt(filterDepartment));
-      }
-      
-      setSemesters(semesterData);
+      setSemesters(semesterRes.data.results || semesterRes.data || []);
       setDepartments(departmentRes.data.results || departmentRes.data || []);
     } catch (err) {
       setError('Error loading data: ' + err.message);
@@ -128,13 +124,31 @@ export default function ManageSemesters() {
       default: return 'badge-default';
     }
   };
+  
+  const handleDepartmentClick = (dept) => {
+    setSelectedDepartment(dept);
+  };
+  
+  const handleBackToDepartments = () => {
+    setSelectedDepartment(null);
+  };
+  
+  const getDepartmentSemesters = () => {
+    if (!selectedDepartment) return [];
+    return semesters.filter(sem => sem.department === selectedDepartment.id);
+  };
 
-  if (loading) return <div className="loading-container"><p>Loading...</p></div>;
+  if (loading) return <div className="loading-container"><p>⏳ Loading...</p></div>;
+
+  const departmentSemesters = getDepartmentSemesters();
 
   return (
     <div className="admin-page">
       <div className="page-header">
-        <h1>🗓️ Manage Semesters</h1>
+        <div>
+          <h1>🗓️ Manage Semesters</h1>
+          <p className="subtitle">Manage academic semesters by department</p>
+        </div>
         <button className="btn-primary" onClick={() => setShowModal(true)}>
           + Add Semester
         </button>
@@ -142,66 +156,111 @@ export default function ManageSemesters() {
 
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {/* Filter by Department */}
-      <div className="page-section">
-        <div className="filter-bar">
-          <label>Filter by Department:</label>
-          <select value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)}>
-            <option value="all">All Departments</option>
-            {departments.map(dept => (
-              <option key={dept.id} value={dept.id}>{dept.name}</option>
-            ))}
-          </select>
+      {/* Navigation Breadcrumb */}
+      {selectedDepartment && (
+        <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button 
+            className="btn-sm btn-secondary" 
+            onClick={handleBackToDepartments}
+            style={{ padding: '6px 12px' }}
+          >
+            🏠 All Departments
+          </button>
+          <span style={{ color: '#666' }}>›</span>
+          <span style={{ fontWeight: 'bold', color: '#0066cc' }}>{selectedDepartment.name}</span>
         </div>
+      )}
 
-        {semesters.length === 0 ? (
-          <p className="empty-state">No semesters found</p>
-        ) : (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Semester</th>
-                  <th>Department</th>
-                  <th>Academic Year</th>
-                  <th>Start Date</th>
-                  <th>End Date</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {semesters.map(semester => (
-                  <tr key={semester.id}>
-                    <td><strong>Semester {semester.number}</strong></td>
-                    <td>{semester.department_name}</td>
-                    <td>{semester.academic_year}</td>
-                    <td>{new Date(semester.start_date).toLocaleDateString()}</td>
-                    <td>{new Date(semester.end_date).toLocaleDateString()}</td>
-                    <td>
-                      <span className={`badge ${getStatusBadgeClass(semester.status)}`}>
-                        {semester.status_display}
-                      </span>
-                    </td>
-                    <td>
-                      <button 
-                        className="btn-sm btn-info"
-                        onClick={() => handleEditSemester(semester)}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        className="btn-sm btn-danger"
-                        onClick={() => handleDeleteSemester(semester.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* MAIN CONTENT */}
+      <div className="page-section">
+        {/* Show Departments Grid (Initial View) */}
+        {!selectedDepartment && (
+          <>
+            <h2>Select Department</h2>
+            <p className="subtitle">Choose a department to view and manage its semesters</p>
+            <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+              {departments.map(dept => {
+                const deptSemesters = semesters.filter(s => s.department === dept.id);
+                const activeSems = deptSemesters.filter(s => s.status === 'active');
+                return (
+                  <div 
+                    key={dept.id} 
+                    className="grid-card" 
+                    style={{ cursor: 'pointer', transition: 'transform 0.2s', border: '2px solid #e0e0e0' }}
+                    onClick={() => handleDepartmentClick(dept)}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                  >
+                    <div className="card-header">
+                      <h3 style={{ fontSize: '18px' }}>🏛️ {dept.name}</h3>
+                      <span className="badge badge-primary">{dept.code}</span>
+                    </div>
+                    <div className="card-body">
+                      <p style={{ margin: '8px 0', color: '#666' }}>
+                        📚 {deptSemesters.length} Total Semesters
+                      </p>
+                      <p style={{ margin: '8px 0', color: '#28a745' }}>
+                        ✓ {activeSems.length} Active
+                      </p>
+                      <p style={{ marginTop: '12px', fontSize: '13px', color: '#999' }}>
+                        Click to manage semesters →
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Show Semesters for Selected Department */}
+        {selectedDepartment && (
+          <>
+            <h2>📚 {selectedDepartment.name} - Semesters ({departmentSemesters.length})</h2>
+            {departmentSemesters.length === 0 ? (
+              <p className="empty-state">No semesters found for this department. Create one!</p>
+            ) : (
+              <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+                {departmentSemesters
+                  .sort((a, b) => a.number - b.number)
+                  .map(semester => (
+                    <div key={semester.id} className="grid-card">
+                      <div className="card-header">
+                        <h3 style={{ fontSize: '20px' }}>📖 Semester {semester.number}</h3>
+                        <span className={`badge ${getStatusBadgeClass(semester.status)}`}>
+                          {semester.status_display || semester.status}
+                        </span>
+                      </div>
+                      <div className="card-body">
+                        <p style={{ margin: '8px 0', fontSize: '14px' }}>
+                          <strong>📅 Academic Year:</strong> {semester.academic_year}
+                        </p>
+                        <p style={{ margin: '8px 0', fontSize: '14px' }}>
+                          <strong>📆 Start:</strong> {new Date(semester.start_date).toLocaleDateString()}
+                        </p>
+                        <p style={{ margin: '8px 0', fontSize: '14px' }}>
+                          <strong>📆 End:</strong> {new Date(semester.end_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="card-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button 
+                          className="btn-sm btn-info"
+                          onClick={() => handleEditSemester(semester)}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button 
+                          className="btn-sm btn-danger"
+                          onClick={() => handleDeleteSemester(semester.id)}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

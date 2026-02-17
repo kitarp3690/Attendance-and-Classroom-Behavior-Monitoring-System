@@ -160,6 +160,7 @@ const Reports = () => {
                                 value={dateRange.from}
                                 onChange={(e) => setDateRange({...dateRange, from: e.target.value})}
                                 disabled={loading}
+                                placeholder="Start date"
                             />
                             <span className="date-separator">to</span>
                             <input 
@@ -167,6 +168,7 @@ const Reports = () => {
                                 value={dateRange.to}
                                 onChange={(e) => setDateRange({...dateRange, to: e.target.value})}
                                 disabled={loading}
+                                placeholder="End date"
                             />
                         </div>
                     </div>
@@ -178,7 +180,7 @@ const Reports = () => {
                             onChange={(e) => setSelectedClass(e.target.value)}
                             disabled={loading}
                         >
-                            <option value="">All Classes</option>
+                            <option value="">-- Select Class (Optional) --</option>
                             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
@@ -190,7 +192,7 @@ const Reports = () => {
                             onChange={(e) => setSelectedSubject(e.target.value)}
                             disabled={loading}
                         >
-                            <option value="">All Subjects</option>
+                            <option value="">-- Select Subject (Optional) --</option>
                             {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
@@ -202,8 +204,8 @@ const Reports = () => {
                             onChange={(e) => setFormat(e.target.value)}
                             disabled={loading}
                         >
-                            <option value="csv">CSV</option>
-                            <option value="json">JSON</option>
+                            <option value="csv">CSV Format</option>
+                            <option value="json">JSON Format</option>
                         </select>
                     </div>
                     <div className="control-group">

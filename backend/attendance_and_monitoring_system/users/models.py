@@ -16,6 +16,14 @@ class CustomUser(AbstractUser):
         blank=True,
         related_name='users'
     )
+    semester = models.ForeignKey(
+        'attendance.Semester',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='students',
+        help_text='Current semester for students'
+    )
     phone = models.CharField(max_length=15, blank=True, null=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
