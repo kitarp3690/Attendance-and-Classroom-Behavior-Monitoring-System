@@ -1,10 +1,13 @@
 .sidebar {
     background: var(--background-alt);
-    min-height: 100vh;
+    min-height: calc(100vh - 70px);
     width: 225px;
     transition: width 0.35s cubic-bezier(.45, .05, 1, .75);
     box-shadow: 0 2px 16px rgba(20, 39, 39, .08);
     position: relative;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
 }
 
 .sidebar.collapsed {
@@ -39,6 +42,10 @@
 }
 
 .sidebar-item {
+    list-style: none;
+}
+
+.sidebar-link {
     display: flex;
     align-items: center;
     gap: 19px;
@@ -48,17 +55,24 @@
     cursor: pointer;
     font-size: 1.04em;
     color: var(--text-dark);
+    text-decoration: none;
+    width: 100%;
 }
 
-.sidebar-item.active {
+.sidebar-item.active .sidebar-link {
     background: var(--card-bg);
     color: var(--primary);
     border-left: 4px solid var(--primary);
 }
 
-.sidebar-item:hover {
+.sidebar-link:hover {
     background: var(--primary);
     color: var(--text-light);
+}
+
+.sidebar-link i {
+    min-width: 20px;
+    text-align: center;
 }
 
 .sidebar-txt {

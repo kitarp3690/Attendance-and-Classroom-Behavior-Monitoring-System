@@ -1,289 +1,519 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import AttendanceChart from "../Charts/AttendanceChart";
-import { dummyStudentData } from "../../utils/dummyData";
+import ViewAttendance from "./StudentPages/ViewAttendance";
+import StudentNotifications from "./StudentPages/StudentNotifications";
+import { attendanceAPI, authAPI, subjectAPI, notificationAPI } from "../../services/api";
 import "./StudentDashboard.css";
 
-const StudentDashboard = () => {
-    const [subject, setSubject] = useState(dummyStudentData.subjects[0]);
-    const [viewMode, setViewMode] = useState('calendar');
+const StudentDashboard = ({ currentPage = "dashboard" }) => {
+    // Route pages based on currentPage
+    if (currentPage === "view-attendance") return <ViewAttendance />;
+    if (currentPage === "notifications") return <StudentNotifications />;
+
+    // Default dashboard view
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [showChangeRequestModal, setShowChangeRequestModal] = useState(false);
+    const [selectedRecord, setSelectedRecord] = useState(null);
     
-    const attendancePercentage = ((dummyStudentData.summary.present / dummyStudentData.summary.totalClasses) * 100).toFixed(1);
+    // State for API data
+    const [studentInfo, setStudentInfo] = useState({ 
+        name: "Loading...", 
+        roll_no: "...", 
+        semester: "...", 
+        department: "...",
+        email: ""
+    });
+    const [attendanceStats, setAttendanceStats] = useState({ 
+        present: 0, 
+        absent: 0, 
+        late: 0, 
+        total: 0, 
+        percentage: 0 
+    });
+    const [attendanceRecords, setAttendanceRecords] = useState([]);
+    const [subjects, setSubjects] = useState([]);
+    const [subjectBreakdown, setSubjectBreakdown] = useState([]);
+    const [notifications, setNotifications] = useState([]);
+    const [changeRequests, setChangeRequests] = useState([]);
+    
+    const attendancePercentage = attendanceStats.percentage || 0;
     const isLowAttendance = attendancePercentage < 75;
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Fetch current user info
+            const userResponse = await authAPI.getCurrentUser();
+            const user = userResponse.data;
+            setStudentInfo({
+                name: `${user.first_name} ${user.last_name}`,
+                roll_no: user.student_id || user.id,
+                semester: user.semester || "N/A",
+                department: user.department_name || user.department || "N/A",
+                email: user.email
+            });
+
+            // Fetch attendance statistics
+            const statsResponse = await attendanceAPI.getStatistics();
+            if (statsResponse.data) {
+                const stats = statsResponse.data;
+                setAttendanceStats({
+                    present: stats.total_present || 0,
+                    absent: stats.total_absent || 0,
+                    late: stats.total_late || 0,
+                    total: stats.total_classes || 0,
+                    percentage: stats.attendance_percentage || 0
+                });
+            }
+
+            // Fetch all attendance records
+            const recordsResponse = await attendanceAPI.getAll();
+            const records = recordsResponse.data.results || recordsResponse.data || [];
+            setAttendanceRecords(records);
+
+            // Fetch subjects (my enrolled subjects)
+            const subjectsResponse = await subjectAPI.getAll();
+            const subjectsData = subjectsResponse.data.results || subjectsResponse.data || [];
+            setSubjects(subjectsData);
+
+            // Fetch notifications
+            const notifResponse = await notificationAPI.getAll();
+            const notifsData = notifResponse.data.results || notifResponse.data || [];
+            setNotifications(notifsData.slice(0, 5));
+
+            // Calculate subject-wise breakdown
+            calculateSubjectBreakdown(records, subjectsData);
+
+        } catch (err) {
+            console.error("Error fetching dashboard data:", err);
+            setError("Failed to load dashboard data. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const calculateSubjectBreakdown = (records, subjectsList) => {
+        const subjectMap = {};
+        
+        // Initialize all subjects
+        subjectsList.forEach(subj => {
+            subjectMap[subj.id] = {
+                id: subj.id,
+                name: subj.name,
+                code: subj.code,
+                present: 0,
+                absent: 0,
+                total: 0
+            };
+        });
+
+        // Count attendance for each subject
+        records.forEach(record => {
+            const subjectId = record.session?.subject?.id || record.subject_id;
+            const subjectName = record.session?.subject?.name || record.subject_name;
+            
+            if (subjectId && subjectMap[subjectId]) {
+                subjectMap[subjectId].total++;
+                if (record.status === "present") {
+                    subjectMap[subjectId].present++;
+                } else if (record.status === "absent") {
+                    subjectMap[subjectId].absent++;
+                }
+            } else if (subjectName) {
+                // Fallback to name matching
+                const matchingSubject = Object.values(subjectMap).find(s => s.name === subjectName);
+                if (matchingSubject) {
+                    matchingSubject.total++;
+                    if (record.status === "present") matchingSubject.present++;
+                    else if (record.status === "absent") matchingSubject.absent++;
+                }
+            }
+        });
+
+        const breakdown = Object.values(subjectMap)
+            .filter(subj => subj.total > 0)
+            .map(subj => ({
+                ...subj,
+                percentage: subj.total > 0 ? ((subj.present / subj.total) * 100).toFixed(1) : 0
+            }));
+
+        setSubjectBreakdown(breakdown);
+    };
+
+    const handleRequestChange = (record) => {
+        setSelectedRecord(record);
+        setShowChangeRequestModal(true);
+    };
+
+    const submitChangeRequest = async (reason) => {
+        try {
+            await attendanceAPI.requestChange({
+                attendance_id: selectedRecord.id,
+                reason: reason,
+                requested_status: 'present'
+            });
+            alert('Change request submitted successfully!');
+            setShowChangeRequestModal(false);
+            setSelectedRecord(null);
+            fetchDashboardData(); // Refresh data
+        } catch (err) {
+            console.error('Error submitting change request:', err);
+            alert('Failed to submit change request. Please try again.');
+        }
+    };
+
+    const downloadReport = async () => {
+        try {
+            const response = await attendanceAPI.downloadReport();
+            // Create download link
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `attendance_report_${new Date().toISOString().split('T')[0]}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (err) {
+            console.error('Error downloading report:', err);
+            alert('Failed to download report. Please try again.');
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="loading-spinner">
+                <div className="spinner"></div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="student-dashboard">
+                <div className="alert-banner alert-danger">
+                    <i className="fa fa-exclamation-circle alert-icon"></i>
+                    <div className="alert-content">
+                        <h4>Error Loading Dashboard</h4>
+                        <p>{error}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="student-dashboard">
-            <div className="student-header">
-                <div className="student-profile">
-                    <div className="profile-avatar">
-                        <i className="fa fa-user-graduate"></i>
+            {/* Header */}
+            <div className="dashboard-header">
+                <div className="header-content">
+                    <div className="header-left">
+                        <div className="student-avatar">
+                            {studentInfo.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="student-info">
+                            <h1>{studentInfo.name}</h1>
+                            <div className="student-meta">
+                                <span className="meta-item">
+                                    <i className="fa fa-id-card"></i>
+                                    Roll: {studentInfo.roll_no}
+                                </span>
+                                <span className="meta-item">
+                                    <i className="fa fa-graduation-cap"></i>
+                                    {studentInfo.semester} - {studentInfo.department}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="profile-info">
-                        <h1>John Doe</h1>
-                        <p>Roll No: 2025001 | Class: Computer Science A</p>
+                    <div className="header-right">
+                        <button className="header-btn btn-secondary" onClick={() => window.location.reload()}>
+                            <i className="fa fa-sync-alt"></i>
+                            Refresh
+                        </button>
+                        <button className="header-btn btn-primary" onClick={downloadReport}>
+                            <i className="fa fa-download"></i>
+                            Download Report
+                        </button>
                     </div>
                 </div>
-                <div className="attendance-badge-container">
-                    <div className={`attendance-percentage-badge ${isLowAttendance ? 'low' : 'good'}`}>
-                        <div className="percentage-circle">
-                            <svg viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="45" className="circle-bg"/>
+            </div>
+
+            <div className="dashboard-content">
+                {/* Low Attendance Warning */}
+                {isLowAttendance && (
+                    <div className="alert-banner alert-warning">
+                        <i className="fa fa-exclamation-triangle alert-icon"></i>
+                        <div className="alert-content">
+                            <h4>Low Attendance Warning</h4>
+                            <p>Your attendance is {attendancePercentage.toFixed(1)}% which is below the required 75%. Please maintain regular attendance to avoid academic penalties.</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Attendance Overview Card */}
+                <div className="attendance-overview">
+                    <div className="overview-header">
+                        <h2 className="overview-title">Attendance Overview</h2>
+                        <span className="semester-badge">{studentInfo.semester}</span>
+                    </div>
+
+                    <div className="attendance-circle-container">
+                        <div className="attendance-circle">
+                            <svg className="circle-svg" viewBox="0 0 100 100">
+                                <circle className="circle-bg" cx="50" cy="50" r="45" />
                                 <circle 
+                                    className={`circle-progress ${isLowAttendance ? attendancePercentage < 65 ? 'danger' : 'warning' : ''}`}
                                     cx="50" 
                                     cy="50" 
-                                    r="45" 
-                                    className="circle-progress"
-                                    style={{strokeDashoffset: `${283 - (283 * attendancePercentage / 100)}`}}
+                                    r="45"
+                                    style={{
+                                        strokeDashoffset: 283 - (283 * attendancePercentage / 100)
+                                    }}
                                 />
                             </svg>
-                            <div className="percentage-text">
-                                <span className="number">{attendancePercentage}%</span>
-                                <span className="label">Attendance</span>
+                            <div className="circle-text">
+                                <div className="circle-percentage">{attendancePercentage.toFixed(1)}%</div>
+                                <div className="circle-label">Overall</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="attendance-stats-grid">
+                        <div className="stat-card">
+                            <div className="stat-label">Present</div>
+                            <div className="stat-value success">{attendanceStats.present}</div>
+                            <div className="stat-percentage" style={{color: 'var(--success)'}}>
+                                <i className="fa fa-check-circle"></i> Attended
+                            </div>
+                        </div>
+
+                        <div className="stat-card">
+                            <div className="stat-label">Absent</div>
+                            <div className="stat-value danger">{attendanceStats.absent}</div>
+                            <div className="stat-percentage" style={{color: 'var(--danger)'}}>
+                                <i className="fa fa-times-circle"></i> Missed
+                            </div>
+                        </div>
+
+                        <div className="stat-card">
+                            <div className="stat-label">Late</div>
+                            <div className="stat-value warning">{attendanceStats.late}</div>
+                            <div className="stat-percentage" style={{color: 'var(--warning)'}}>
+                                <i className="fa fa-clock"></i> Late Arrivals
+                            </div>
+                        </div>
+
+                        <div className="stat-card">
+                            <div className="stat-label">Total Classes</div>
+                            <div className="stat-value primary">{attendanceStats.total}</div>
+                            <div className="stat-percentage" style={{color: 'var(--primary)'}}>
+                                <i className="fa fa-calendar-check"></i> Scheduled
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {isLowAttendance && (
-                <div className="warning-alert">
-                    <i className="fa fa-exclamation-triangle"></i>
-                    <div>
-                        <h4>Low Attendance Warning</h4>
-                        <p>Your attendance is below 75%. Please maintain regular attendance to avoid academic penalties.</p>
-                    </div>
-                </div>
-            )}
+                {/* Dashboard Grid */}
+                <div className="dashboard-grid">
 
-            <div className="student-stats-grid">
-                <div className="student-stat-box present">
-                    <div className="stat-icon"><i className="fa fa-check-circle"></i></div>
-                    <div className="stat-content">
-                        <h3>{dummyStudentData.summary.present}</h3>
-                        <p>Classes Attended</p>
-                    </div>
-                </div>
-
-                <div className="student-stat-box absent">
-                    <div className="stat-icon"><i className="fa fa-times-circle"></i></div>
-                    <div className="stat-content">
-                        <h3>{dummyStudentData.summary.absent}</h3>
-                        <p>Classes Missed</p>
-                    </div>
-                </div>
-
-                <div className="student-stat-box late">
-                    <div className="stat-icon"><i className="fa fa-clock"></i></div>
-                    <div className="stat-content">
-                        <h3>{dummyStudentData.summary.late}</h3>
-                        <p>Late Arrivals</p>
-                    </div>
-                </div>
-
-                <div className="student-stat-box total">
-                    <div className="stat-icon"><i className="fa fa-calendar-check"></i></div>
-                    <div className="stat-content">
-                        <h3>{dummyStudentData.summary.totalClasses}</h3>
-                        <p>Total Classes</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="subject-filter-section">
-                <div className="filter-header">
-                    <div className="filter-label">
-                        <i className="fa fa-filter"></i>
-                        <span>Filter by Subject:</span>
-                    </div>
-                    <select value={subject} onChange={e => setSubject(e.target.value)} className="subject-select">
-                        <option value="all">All Subjects</option>
-                        {dummyStudentData.subjects.map(subj => <option key={subj} value={subj}>{subj}</option>)}
-                    </select>
-                </div>
-                <div className="view-mode-toggle">
-                    <button 
-                        className={viewMode === 'calendar' ? 'active' : ''} 
-                        onClick={() => setViewMode('calendar')}
-                    >
-                        <i className="fa fa-calendar"></i> Calendar View
-                    </button>
-                    <button 
-                        className={viewMode === 'list' ? 'active' : ''} 
-                        onClick={() => setViewMode('list')}
-                    >
-                        <i className="fa fa-list"></i> List View
-                    </button>
-                </div>
-            </div>
-
-            <div className="attendance-sections">
-                <div className="section-card">
-                    <div className="card-header">
-                        <h2><i className="fa fa-calendar-alt"></i> Attendance Calendar</h2>
-                        <span className="month-label">November 2025</span>
-                    </div>
-                    <div className="attendance-calendar">
-                        <div className="calendar-legend">
-                            <span className="legend-item present">
-                                <span className="dot"></span> Present
-                            </span>
-                            <span className="legend-item absent">
-                                <span className="dot"></span> Absent
-                            </span>
-                            <span className="legend-item late">
-                                <span className="dot"></span> Late
-                            </span>
+                    {/* Subject-wise Breakdown Card */}
+                    <div className="dashboard-card">
+                        <div className="card-header">
+                            <h3 className="card-title">
+                                <i className="fa fa-book"></i>
+                                Subject-wise Breakdown
+                            </h3>
+                            <span className="card-action">View All</span>
                         </div>
-                        <div className="calendar-grid">
-                            {dummyStudentData.detail.map((day, index) => (
-                                <div 
-                                    key={day.date} 
-                                    className={`calendar-day ${day.status.toLowerCase()}`}
-                                    title={`${day.date} - ${day.status}`}
-                                >
-                                    <span className="day-number">{index + 1}</span>
-                                    <span className="day-status">
-                                        {day.status === 'Present' && <i className="fa fa-check"></i>}
-                                        {day.status === 'Absent' && <i className="fa fa-times"></i>}
-                                        {day.status === 'Late' && <i className="fa fa-clock"></i>}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
+                        
+                        {subjectBreakdown.length === 0 ? (
+                            <div className="empty-state">
+                                <i className="fa fa-inbox"></i>
+                                <p>No subject data available</p>
+                            </div>
+                        ) : (
+                            <div className="subject-list">
+                                {subjectBreakdown.map((subj, index) => {
+                                    const isLow = parseFloat(subj.percentage) < 75;
+                                    return (
+                                        <div key={subj.id} className="subject-item">
+                                            <div className="subject-info">
+                                                <div className="subject-name">{subj.name}</div>
+                                                <div className="subject-code">{subj.code}</div>
+                                            </div>
+                                            <div className="subject-stats">
+                                                <div className="subject-attendance">
+                                                    <div className={`attendance-percentage ${isLow ? 'danger' : 'success'}`}>
+                                                        {subj.percentage}%
+                                                    </div>
+                                                    <div className="attendance-details">
+                                                        {subj.present}/{subj.total} classes
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
-                    {viewMode === 'list' && (
-                        <div className="attendance-list">
-                            {dummyStudentData.detail.map(day => (
-                                <div key={day.date} className={`attendance-list-item ${day.status.toLowerCase()}`}>
-                                    <div className="list-date">
-                                        <i className="fa fa-calendar-day"></i>
-                                        <span>{day.date}</span>
+                    {/* Recent Activity Card */}
+                    <div className="dashboard-card">
+                        <div className="card-header">
+                            <h3 className="card-title">
+                                <i className="fa fa-history"></i>
+                                Recent Activity
+                            </h3>
+                            <span className="card-action">View All</span>
+                        </div>
+                        
+                        {attendanceRecords.length === 0 ? (
+                            <div className="empty-state">
+                                <i className="fa fa-calendar-times"></i>
+                                <p>No recent attendance records</p>
+                            </div>
+                        ) : (
+                            <div className="activity-list">
+                                {attendanceRecords.slice(0, 8).map(record => (
+                                    <div key={record.id} className="activity-item">
+                                        <div className={`activity-icon ${record.status}`}>
+                                            {record.status === 'present' && <i className="fa fa-check"></i>}
+                                            {record.status === 'absent' && <i className="fa fa-times"></i>}
+                                            {record.status === 'late' && <i className="fa fa-clock"></i>}
+                                        </div>
+                                        <div className="activity-details">
+                                            <div className="activity-title">
+                                                {record.session?.subject?.name || 'Unknown Subject'}
+                                            </div>
+                                            <div className="activity-meta">
+                                                {new Date(record.marked_at || record.date).toLocaleDateString()} • 
+                                                {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                                                {record.status === 'absent' && (
+                                                    <button 
+                                                        onClick={() => handleRequestChange(record)}
+                                                        style={{
+                                                            marginLeft: '10px',
+                                                            padding: '2px 8px',
+                                                            fontSize: '11px',
+                                                            background: 'var(--primary)',
+                                                            color: '#fff',
+                                                            border: 'none',
+                                                            borderRadius: '4px',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        Request Change
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className={`list-status status-${day.status.toLowerCase()}`}>
-                                        {day.status}
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Notifications Card - Full Width */}
+                <div className="dashboard-card">
+                    <div className="card-header">
+                        <h3 className="card-title">
+                            <i className="fa fa-bell"></i>
+                            Notifications
+                        </h3>
+                        <span className="card-action">Mark all as read</span>
+                    </div>
+                    
+                    {notifications.length === 0 ? (
+                        <div className="empty-state">
+                            <i className="fa fa-bell-slash"></i>
+                            <p>No new notifications</p>
+                        </div>
+                    ) : (
+                        <div className="notification-list">
+                            {notifications.map(notif => (
+                                <div key={notif.id} className={`notification-item ${notif.is_read ? '' : 'unread'}`}>
+                                    <div className="notification-header">
+                                        <div className="notification-title">{notif.title || 'Notification'}</div>
+                                        <div className="notification-time">
+                                            {new Date(notif.created_at).toLocaleDateString()}
+                                        </div>
+                                    </div>
+                                    <div className="notification-message">
+                                        {notif.message || 'No message content'}
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
-
-                <div className="section-card">
-                    <div className="card-header">
-                        <h2><i className="fa fa-chart-line"></i> Attendance Trends</h2>
-                    </div>
-                    <AttendanceChart data={dummyStudentData.charts} role="student" />
-                    
-                    <div className="insights-section">
-                        <h3><i className="fa fa-lightbulb"></i> Insights</h3>
-                        <div className="insight-item">
-                            <i className="fa fa-trending-up"></i>
-                            <p>Your attendance improved by 5% this month!</p>
-                        </div>
-                        <div className="insight-item">
-                            <i className="fa fa-trophy"></i>
-                            <p>You've maintained 100% attendance for Mathematics.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="section-card">
-                    <div className="card-header">
-                        <h2><i className="fa fa-book-open"></i> Subject-wise Breakdown</h2>
-                    </div>
-                    <div className="subject-breakdown">
-                        <div className="subject-row">
-                            <div className="subject-name">
-                                <i className="fa fa-calculator"></i>
-                                <span>Mathematics</span>
-                            </div>
-                            <div className="subject-stats">
-                                <span className="stat-value">45/50</span>
-                                <div className="progress-bar-container">
-                                    <div className="progress-bar" style={{width: '90%'}}></div>
-                                </div>
-                                <span className="percentage">90%</span>
-                            </div>
-                        </div>
-
-                        <div className="subject-row">
-                            <div className="subject-name">
-                                <i className="fa fa-flask"></i>
-                                <span>Physics</span>
-                            </div>
-                            <div className="subject-stats">
-                                <span className="stat-value">38/50</span>
-                                <div className="progress-bar-container">
-                                    <div className="progress-bar" style={{width: '76%'}}></div>
-                                </div>
-                                <span className="percentage">76%</span>
-                            </div>
-                        </div>
-
-                        <div className="subject-row">
-                            <div className="subject-name">
-                                <i className="fa fa-atom"></i>
-                                <span>Chemistry</span>
-                            </div>
-                            <div className="subject-stats">
-                                <span className="stat-value">42/50</span>
-                                <div className="progress-bar-container">
-                                    <div className="progress-bar" style={{width: '84%'}}></div>
-                                </div>
-                                <span className="percentage">84%</span>
-                            </div>
-                        </div>
-
-                        <div className="subject-row">
-                            <div className="subject-name">
-                                <i className="fa fa-laptop-code"></i>
-                                <span>Computer Science</span>
-                            </div>
-                            <div className="subject-stats">
-                                <span className="stat-value">47/50</span>
-                                <div className="progress-bar-container">
-                                    <div className="progress-bar" style={{width: '94%'}}></div>
-                                </div>
-                                <span className="percentage">94%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="section-card">
-                    <div className="card-header">
-                        <h2><i className="fa fa-bell"></i> Recent Notifications</h2>
-                    </div>
-                    <div className="notifications-list">
-                        <div className="notification-item new">
-                            <div className="notif-icon"><i className="fa fa-check-circle"></i></div>
-                            <div className="notif-content">
-                                <h4>Attendance Marked</h4>
-                                <p>Your attendance for Mathematics class has been marked as Present.</p>
-                                <span className="notif-time">2 hours ago</span>
-                            </div>
-                        </div>
-
-                        <div className="notification-item">
-                            <div className="notif-icon"><i className="fa fa-exclamation-circle"></i></div>
-                            <div className="notif-content">
-                                <h4>Attendance Alert</h4>
-                                <p>Your Physics attendance is below 75%. Please attend regularly.</p>
-                                <span className="notif-time">1 day ago</span>
-                            </div>
-                        </div>
-
-                        <div className="notification-item">
-                            <div className="notif-icon"><i className="fa fa-calendar-plus"></i></div>
-                            <div className="notif-content">
-                                <h4>New Class Scheduled</h4>
-                                <p>Extra class for Chemistry on Friday at 2:00 PM.</p>
-                                <span className="notif-time">2 days ago</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
+
+            {/* Change Request Modal */}
+            {showChangeRequestModal && (
+                <div className="modal-overlay" onClick={() => setShowChangeRequestModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Request Attendance Change</h3>
+                            <button className="modal-close" onClick={() => setShowChangeRequestModal(false)}>
+                                <i className="fa fa-times"></i>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p><strong>Subject:</strong> {selectedRecord?.session?.subject?.name || 'Unknown'}</p>
+                            <p><strong>Date:</strong> {selectedRecord && new Date(selectedRecord.marked_at || selectedRecord.date).toLocaleDateString()}</p>
+                            <p><strong>Current Status:</strong> <span style={{color: 'var(--danger)', fontWeight: 600}}>Absent</span></p>
+                            
+                            <div style={{marginTop: '20px'}}>
+                                <label style={{display: 'block', marginBottom: '8px', fontWeight: 600}}>
+                                    Reason for Change Request:
+                                </label>
+                                <textarea 
+                                    id="change-reason"
+                                    rows="4"
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: '8px',
+                                        fontSize: '14px',
+                                        resize: 'vertical'
+                                    }}
+                                    placeholder="Please provide a valid reason for the change request..."
+                                />
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                className="btn-secondary"
+                                onClick={() => setShowChangeRequestModal(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                className="btn-primary"
+                                onClick={() => {
+                                    const reason = document.getElementById('change-reason').value;
+                                    if (!reason.trim()) {
+                                        alert('Please provide a reason');
+                                        return;
+                                    }
+                                    submitChangeRequest(reason);
+                                }}
+                            >
+                                Submit Request
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -1,6 +1,7 @@
 :root {
     --primary: #3a7afe;
     --primary-alt: #764ba2;
+    --primary-soft: rgba(58, 122, 254, 0.12);
     --accent: #fbbc05;
     --success: #059669;
     --success-soft: #d1fae5;
@@ -43,6 +44,7 @@
 [data-theme="dark"] {
     --primary: #4f8fff;
     --primary-alt: #8b5cf6;
+    --primary-soft: rgba(79, 143, 255, 0.12);
     --accent: #f7c948;
     --success: #34d399;
     --success-soft: rgba(34, 197, 94, 0.15);
