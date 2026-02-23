@@ -1,0 +1,201 @@
+.attendance-table-container {
+    background: var(--card-bg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-main);
+    box-shadow: var(--shadow-soft);
+    padding: 24px 24px 20px;
+    margin-bottom: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    transition: background var(--transition-base), color var(--transition-base), border-color var(--transition-base);
+}
+
+.table-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.table-filters select,
+.table-filters input[type="text"] {
+    min-width: 150px;
+    padding: 10px 14px;
+    border: 1px solid var(--border-main);
+    border-radius: var(--radius-sm);
+    background: var(--background-alt);
+    color: var(--text-dark);
+    transition: border-color var(--transition-base), box-shadow var(--transition-base), background var(--transition-base);
+}
+
+.table-filters select:focus,
+.table-filters input[type="text"]:focus {
+    border-color: var(--primary);
+    background: var(--card-bg);
+    box-shadow: 0 0 0 3px rgba(58, 122, 254, 0.14);
+    outline: none;
+}
+
+.attendance-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: var(--radius-sm);
+}
+
+.attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+.attendance-table thead th {
+    text-align: left;
+    padding: 14px 18px;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-subtle);
+    background: var(--background-alt);
+    border-bottom: 1px solid var(--border-main);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.attendance-table tbody tr {
+    transition: background var(--transition-base), transform var(--transition-base);
+}
+
+.attendance-table tbody tr:hover {
+    background: var(--surface-hover);
+    transform: translateX(2px);
+}
+
+.attendance-table tbody td {
+    padding: 16px 18px;
+    border-top: 1px solid var(--border-main);
+    color: var(--text-dark);
+    font-size: 0.96rem;
+    white-space: nowrap;
+}
+
+.attendance-table tbody td:nth-child(1) {
+    font-weight: 600;
+}
+
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--background-alt);
+}
+
+.status.present {
+    background: rgba(16, 185, 129, 0.16);
+}
+
+.status.absent {
+    background: rgba(248, 113, 113, 0.16);
+}
+
+.status.late {
+    background: rgba(251, 191, 36, 0.16);
+}
+
+.edit-btn,
+.delete-btn {
+    border-radius: 6px;
+    padding: 7px 14px;
+    background: transparent;
+    border: 1px solid var(--border-main);
+    color: var(--text-dark);
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 6px;
+    font-size: 0.9em;
+    transition: background var(--transition-base), color var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+}
+
+.edit-btn {
+    border-color: rgba(16, 185, 129, 0.35);
+    color: var(--success-strong);
+}
+
+.edit-btn:hover {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: var(--success);
+    transform: translateY(-1px);
+}
+
+.delete-btn {
+    border-color: rgba(248, 113, 113, 0.35);
+    color: var(--danger-strong);
+}
+
+.delete-btn:hover {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: var(--danger);
+    transform: translateY(-1px);
+}
+
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    row-gap: 10px;
+    font-size: 0.92rem;
+    color: var(--text-muted);
+}
+
+.pagination button {
+    border: 1px solid var(--border-main);
+    background: var(--background-alt);
+    color: var(--text-dark);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-base), border-color var(--transition-base), color var(--transition-base);
+}
+
+.pagination button:hover:not(:disabled) {
+    background: var(--primary);
+    color: var(--text-light);
+    border-color: transparent;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+}
+
+@media (max-width: 900px) {
+    .attendance-table-container {
+        padding: 20px 18px;
+    }
+
+    .attendance-table {
+        min-width: 640px;
+    }
+}
+
+@media (max-width: 640px) {
+    .table-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .table-filters select,
+    .table-filters input[type="text"] {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .pagination {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+}
